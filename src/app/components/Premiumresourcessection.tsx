@@ -17,7 +17,7 @@ const products = [
     iconBg: "#E9F9EE",
     iconColor: "#19B44A",
     title: "Worksheets Download",
-    subtitle: "Premium Worksheets",
+    subtitle: "12+ Premium Worksheets",
     price: "₹12",
   },
   {
@@ -79,7 +79,7 @@ export default function PremiumResourcesSection() {
             display: "flex",
             flexWrap: "wrap",
             justifyContent: "center",
-            gap: { xs: 3, md: 4 },
+            gap: { xs: 3, md: 8 },
           }}
         >
           {products.map(
@@ -88,8 +88,8 @@ export default function PremiumResourcesSection() {
                 key={title}
                 sx={{
                   width: { xs: "100%", sm: "calc(33.333% - 22px)" },
-                  maxWidth: 360,
-                  minWidth: 260,
+                  maxWidth: 310,
+                  minWidth: 220,
                 }}
               >
                 <Box

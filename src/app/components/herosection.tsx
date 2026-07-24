@@ -30,7 +30,7 @@ export default function HeroSection() {
   return (
     <Box
       sx={{
-        py: { xs: 5, md: 8 },
+        py: { xs: 4, md: 6 },
         bgcolor: "#fff",
         overflow: "hidden",
         position: "relative",
@@ -108,7 +108,7 @@ export default function HeroSection() {
 
               <Stack
                 direction={{ xs: "column", sm: "row" }}
-                spacing={2}
+                spacing={4}
                 sx={{ width: { xs: "100%", sm: "auto" } }}
                 alignItems="center"
               >
@@ -170,7 +170,7 @@ export default function HeroSection() {
                 {features.map(({ icon: Icon, line1, line2 }) => (
                   <Grid
                     key={line1 + line2}
-                    size={{ xs: 6, sm: 6, md: 3 }}
+                    size={{ xs: 6, sm: 3, md: 3 }}
                     sx={{ minWidth: 0 }}
                   >
                     <Stack
@@ -179,7 +179,13 @@ export default function HeroSection() {
                       alignItems="center"
                       justifyContent={{ xs: "center", sm: "center", md: "flex-start" }}
                     >
-                      <Icon sx={{ color: "#19B44A", fontSize: 32, flexShrink: 0 }} />
+                      <Icon
+                        sx={{
+                          color: "#19B44A",
+                          fontSize: { xs: 32, sm: 26, md: 32 },
+                          flexShrink: 0,
+                        }}
+                      />
                       <Typography
                         variant="body2"
                         sx={{
@@ -187,6 +193,7 @@ export default function HeroSection() {
                           lineHeight: 1.3,
                           textAlign: "left",
                           whiteSpace: "nowrap",
+                          fontSize: { xs: "0.875rem", sm: "0.75rem", md: "0.875rem" },
                         }}
                       >
                         {line1}
@@ -210,7 +217,7 @@ export default function HeroSection() {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                minHeight: { xs: 260, sm: 340, md: 500, lg: 560 },
+                minHeight: { xs: 220, sm: 280, md: 380, lg: 400 },
               }}
             >
               {/* Student Image */}
