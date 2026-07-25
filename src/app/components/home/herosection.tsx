@@ -255,7 +255,7 @@ export default function HeroSection() {
               {/* Student Image */}
 
               <Image
-                src="/img/home/hero-img1.jpg"
+                src="/img/home/hero-img.webp"
                 alt="Hero Student"
                 width={800}
                 height={600}
