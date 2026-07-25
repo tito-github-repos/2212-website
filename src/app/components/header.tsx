@@ -56,11 +56,14 @@ export default function Header() {
   const handleToggle = () => setMobileOpen((prev) => !prev);
   const handleClose = () => setMobileOpen(false);
 
-  useEffect(() => {
-    if (isDesktop && mobileOpen) {
-      setMobileOpen(false);
-    }
-  }, [isDesktop, mobileOpen]);
+  // derived value — no effect needed
+const isDrawerOpen = mobileOpen && !isDesktop;
+
+  // useEffect(() => {
+  //   if (isDesktop && mobileOpen) {
+  //     setMobileOpen(false);
+  //   }
+  // }, [isDesktop, mobileOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -198,7 +201,7 @@ export default function Header() {
 
               <Button
                 component={Link}
-                href="/register"
+                href="/#register"
                 variant="contained"
                 endIcon={<ArrowForwardIcon />}
                 sx={registerButtonSx}
@@ -228,7 +231,7 @@ export default function Header() {
       </Box>
 
       {/* Mobile drawer */}
-      <Drawer anchor="right" open={mobileOpen} onClose={handleClose}>
+      <Drawer anchor="right" open={isDrawerOpen} onClose={handleClose}>
         <Box
           sx={{
             width: 280,
@@ -303,7 +306,7 @@ export default function Header() {
           <Box sx={{ px: 2, mt: 2 }}>
             <Button
               component={Link}
-              href="/register"
+              href="/#register"
               onClick={handleClose}
               variant="contained"
               fullWidth
