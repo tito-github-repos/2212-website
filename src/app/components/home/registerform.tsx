@@ -63,44 +63,68 @@ export default function RegisterSection() {
   };
 
   const handleSubmit = async () => {
-    try {
-      await schema.validate(values, {
-        abortEarly: false,
-      });
+  try {
+    // Reset previous success message
+    setSuccess(false);
 
-      setErrors({
-        name: "",
-        email: "",
-        mobile: "",
-      });
+    // Validate form
+    await schema.validate(values, {
+      abortEarly: false,
+    });
 
-      console.log(values);
+    // Clear validation errors
+    setErrors({
+      name: "",
+      email: "",
+      mobile: "",
+    });
 
-      setSuccess(true);
+    // Call API E:\2212-website-tito-github\2212-website\src\app\api\registration
+    const response = await fetch("/api/registration", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(values),
+    });
 
-      setValues({
-        name: "",
-        email: "",
-        mobile: "",
-      });
-    } catch (err) {
-      if (err instanceof yup.ValidationError) {
-        const formErrors = {
-          name: "",
-          email: "",
-          mobile: "",
-        };
+    const result = await response.json();
 
-        err.inner.forEach((e) => {
-          if (e.path) {
-            formErrors[e.path as keyof typeof formErrors] = e.message;
-          }
-        });
-
-        setErrors(formErrors);
-      }
+    // Handle API errors
+    if (!response.ok) {
+      alert(result.message || "Registration failed.");
+      return;
     }
-  };
+
+    // Success
+    setSuccess(true);
+
+    setValues({
+      name: "",
+      email: "",
+      mobile: "",
+    });
+  } catch (err) {
+    if (err instanceof yup.ValidationError) {
+      const formErrors = {
+        name: "",
+        email: "",
+        mobile: "",
+      };
+
+      err.inner.forEach((error) => {
+        if (error.path) {
+          formErrors[error.path as keyof typeof formErrors] = error.message;
+        }
+      });
+
+      setErrors(formErrors);
+    } else {
+      console.error(err);
+      alert("Something went wrong. Please try again.");
+    }
+  }
+};
 
   return (
     <Box
