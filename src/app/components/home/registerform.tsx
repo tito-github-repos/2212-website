@@ -132,6 +132,7 @@ export default function RegisterSection() {
       sx={{
         py: { xs: 3, md: 4 },
         scrollMarginTop: "80px",
+        backgroundColor: "var(--white)"
       }}
     >
       <Container maxWidth="xl">

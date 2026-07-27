@@ -28,6 +28,7 @@ export default function AppDownloadSection() {
       sx={{
         scrollMarginTop: "80px",
         py: { xs: 2.5, md: 3.5 },
+        backgroundColor: "var(--white)"
       }}
     >
       <Container maxWidth="lg">
