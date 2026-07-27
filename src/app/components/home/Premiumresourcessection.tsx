@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Box,
-  Container,
-  Stack,
-  Typography,
-  Button,
-} from "@mui/material";
+import { Box, Container, Stack, Typography, Button } from "@mui/material";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
@@ -50,7 +44,14 @@ export default function PremiumResourcesSection() {
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        <Stack spacing={1.5} sx={{ textAlign: "center", alignItems: "center", mb: { xs: 3, md: 4 } }}>
+        <Stack
+          spacing={1.5}
+          sx={{
+            textAlign: "center",
+            alignItems: "center",
+            mb: { xs: 3, md: 4 },
+          }}
+        >
           <Typography
             variant="h3"
             sx={{
@@ -72,8 +73,7 @@ export default function PremiumResourcesSection() {
               color: "#6B7280",
             }}
           >
-            Quality resources to help you practice better and perform your
-            best.
+            Quality resources to help you practice better and perform your best.
           </Typography>
         </Stack>
 
@@ -112,7 +112,11 @@ export default function PremiumResourcesSection() {
                     },
                   }}
                 >
-                  <Stack direction="row" spacing={2} sx={{alignItems:"center"}}>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ alignItems: "center" }}
+                  >
                     <Box
                       sx={{
                         width: 52,
@@ -140,8 +144,10 @@ export default function PremiumResourcesSection() {
                       </Typography>
                       <Typography
                         variant="body2"
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: "0.75rem", md: "0.8rem" } }}
+                        sx={{
+                          color: "text.secondary",
+                          fontSize: { xs: "0.75rem", md: "0.8rem" },
+                        }}
                       >
                         {subtitle}
                       </Typography>
@@ -176,7 +182,7 @@ export default function PremiumResourcesSection() {
                   </Button>
                 </Box>
               </Box>
-            )
+            ),
           )}
         </Box>
       </Container>
