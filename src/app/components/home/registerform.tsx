@@ -15,6 +15,14 @@ import {
   Typography,
 } from "@mui/material";
 
+const isRepeatedDigits = (value: string) => /^(\d)\1{9}$/.test(value);
+
+const isSequential = (value: string) => {
+  const ascending = "01234567890123456789"; // covers wrap-around sequences
+  const descending = "98765432109876543210";
+  return ascending.includes(value) || descending.includes(value);
+};
+
 const schema = yup.object({
   name: yup
     .string()
@@ -25,12 +33,25 @@ const schema = yup.object({
   email: yup
     .string()
     .required("Email address is required")
-    .email("Enter a valid email address"),
+    .matches(
+      /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/,
+      "Enter a valid email address"
+    ),
 
   mobile: yup
-    .string()
-    .required("Mobile number is required")
-    .matches(/^[0-9]{10}$/, "Enter a valid 10-digit mobile number"),
+  .string()
+  .required("Mobile number is required")
+  .matches(/^[6-9]\d{9}$/, "Enter a valid 10-digit phone number")
+  .test(
+    "no-repeated-digits",
+    "Mobile number cannot be all the same digit",
+    (value) => !value || !isRepeatedDigits(value)
+  )
+  .test(
+    "no-sequential-digits",
+    "Mobile number cannot be a sequential number",
+    (value) => !value || !isSequential(value)
+  ),
 });
 
 export default function RegisterSection() {
@@ -48,83 +69,94 @@ export default function RegisterSection() {
 
   const [success, setSuccess] = useState(false);
 
+  const validateField = async (
+    field: keyof typeof values,
+    updatedValues: typeof values
+  ) => {
+    try {
+      await schema.validateAt(field, updatedValues);
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        setErrors((prev) => ({ ...prev, [field]: err.message }));
+      }
+    }
+  };
+
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    setValues((prev) => ({
-      ...prev,
-      [name]: name === "mobile" ? value.replace(/\D/g, "") : value,
-    }));
+    const nextValue =
+      name === "mobile" ? value.replace(/\D/g, "").slice(0, 10) : value;
 
-    setErrors((prev) => ({
-      ...prev,
-      [name]: "",
-    }));
+    const updatedValues = { ...values, [name]: nextValue };
+    setValues(updatedValues);
+    validateField(name as keyof typeof values, updatedValues);
   };
 
   const handleSubmit = async () => {
-  try {
-    // Reset previous success message
-    setSuccess(false);
+    try {
+      // Reset previous success message
+      setSuccess(false);
 
-    // Validate form
-    await schema.validate(values, {
-      abortEarly: false,
-    });
+      // Validate form
+      await schema.validate(values, {
+        abortEarly: false,
+      });
 
-    // Clear validation errors
-    setErrors({
-      name: "",
-      email: "",
-      mobile: "",
-    });
-
-    // Call API E:\2212-website-tito-github\2212-website\src\app\api\registration
-    const response = await fetch("/api/registration", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(values),
-    });
-
-    const result = await response.json();
-
-    // Handle API errors
-    if (!response.ok) {
-      alert(result.message || "Registration failed.");
-      return;
-    }
-
-    // Success
-    setSuccess(true);
-
-    setValues({
-      name: "",
-      email: "",
-      mobile: "",
-    });
-  } catch (err) {
-    if (err instanceof yup.ValidationError) {
-      const formErrors = {
+      // Clear validation errors
+      setErrors({
         name: "",
         email: "",
         mobile: "",
-      };
-
-      err.inner.forEach((error) => {
-        if (error.path) {
-          formErrors[error.path as keyof typeof formErrors] = error.message;
-        }
       });
 
-      setErrors(formErrors);
-    } else {
-      console.error(err);
-      alert("Something went wrong. Please try again.");
+      // Call API E:\2212-website-tito-github\2212-website\src\app\api\registration
+      const response = await fetch("/api/registration", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      const result = await response.json();
+
+      // Handle API errors
+      if (!response.ok) {
+        alert(result.message || "Registration failed.");
+        return;
+      }
+
+      // Success
+      setSuccess(true);
+
+      setValues({
+        name: "",
+        email: "",
+        mobile: "",
+      });
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        const formErrors = {
+          name: "",
+          email: "",
+          mobile: "",
+        };
+
+        err.inner.forEach((error) => {
+          if (error.path) {
+            formErrors[error.path as keyof typeof formErrors] = error.message;
+          }
+        });
+
+        setErrors(formErrors);
+      } else {
+        console.error(err);
+        alert("Something went wrong. Please try again.");
+      }
     }
-  }
-};
+  };
 
   return (
     <Box
@@ -132,7 +164,7 @@ export default function RegisterSection() {
       sx={{
         py: { xs: 3, md: 4 },
         scrollMarginTop: "80px",
-        backgroundColor: "var(--white)"
+        backgroundColor: "var(--white)",
       }}
     >
       <Container maxWidth="xl">
