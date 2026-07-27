@@ -28,7 +28,7 @@ export default function AppDownloadSection() {
       sx={{
         scrollMarginTop: "80px",
         py: { xs: 2.5, md: 3.5 },
-        backgroundColor: "var(--white)"
+        backgroundColor: "var(--white)",
       }}
     >
       <Container maxWidth="lg">
@@ -175,7 +175,9 @@ export default function AppDownloadSection() {
                 >
                   <Box
                     component="a"
-                    href="#"
+                    href="https://play.google.com/store/apps/details?id=com.kids_edu_app"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     sx={{
                       display: "inline-flex",
                       transition: "transform .25s ease",
@@ -199,7 +201,9 @@ export default function AppDownloadSection() {
 
                   <Box
                     component="a"
-                    href="#"
+                    href="https://apps.apple.com/in/app/2212/id6756906682"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     sx={{
                       display: "inline-flex",
                       transition: "transform .25s ease",
