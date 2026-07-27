@@ -95,8 +95,8 @@ export default function HeroSection() {
 
               <Typography
                 variant="body1"
-                color="text.secondary"
                 sx={{
+                  color: "text.secondary",
                   maxWidth: 480,
                   lineHeight: 1.7,
                   mx: { xs: "auto", md: 0 },
@@ -217,6 +217,7 @@ export default function HeroSection() {
                       <Typography
                         variant="body2"
                         sx={{
+                          color: "var(--black)",
                           fontWeight: 700,
                           lineHeight: 1.3,
                           textAlign: "left",

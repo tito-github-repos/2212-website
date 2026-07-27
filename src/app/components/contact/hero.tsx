@@ -18,7 +18,7 @@ export default function ContactHero() {
   return (
     <Box
       component="section"
-      sx={{ pt: { xs: 3, md: 6 }, pb: { xs: 3, md: 6 } }}
+      sx={{ pt: { xs: 3, md: 6 }, pb: { xs: 3, md: 6 }, backgroundColor: "var(--white)" }}
     >
       <Container maxWidth="lg">
         <Box
@@ -50,6 +50,7 @@ export default function ContactHero() {
                 lineHeight: 1.15,
                 mt: 1,
                 mb: 3,
+                color: "var(--black)"
               }}
             >
               We&apos;re Here to{" "}
@@ -115,7 +116,7 @@ export default function ContactHero() {
                     >
                       <Icon fontSize="small" />
                     </Box>
-                    <Typography variant="body2" sx={{ lineHeight: 1.3 }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.3, color: "var(--black)" }}>
                       {feature.label}
                     </Typography>
                   </Box>
@@ -134,7 +135,7 @@ export default function ContactHero() {
             }}
           >
             <Image
-              src="/img/contact/contact.webp"
+              src="/img/contact/contact1.webp"
               alt="Contact us illustration"
               width={480}
               height={360}

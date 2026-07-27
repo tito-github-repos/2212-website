@@ -97,7 +97,7 @@ const sectionCardSx = {
 
 export default function GetInTouch() {
   return (
-    <Box component="section" sx={{ pb: { xs: 3, md: 6 } }}>
+    <Box component="section" sx={{ pb: { xs: 3, md: 6 }, backgroundColor: "var(--white)" }}>
       <Container maxWidth="lg">
         <Box
           sx={{
@@ -120,7 +120,7 @@ export default function GetInTouch() {
                   bgcolor: "var(--primary)",
                 }}
               />
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "var(--black)" }}>
                 Get in Touch
               </Typography>
             </Box>
@@ -145,7 +145,7 @@ export default function GetInTouch() {
                       <Box>
                         <Typography
                           variant="subtitle2"
-                          sx={{ fontWeight: 700 }}
+                          sx={{ fontWeight: 700, color: "var(--black)" }}
                         >
                           {item.label}
                         </Typography>
