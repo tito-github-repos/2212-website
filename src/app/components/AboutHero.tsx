@@ -313,7 +313,7 @@ export default function AboutHero() {
               flex: "1 1 320px",
               minWidth: 0,
               maxWidth: 460,
-            }}
+            }} 
           >
             <Box
               sx={{
@@ -322,10 +322,11 @@ export default function AboutHero() {
                 aspectRatio: "4 / 3",
                 maskImage:
                   "radial-gradient(ellipse 75% 75% at center, #000 55%, transparent 100%)",
+
                 WebkitMaskImage:
                   "radial-gradient(ellipse 75% 75% at center, #000 55%, transparent 100%)",
               }}
-            >
+            > 
               <Image
                 src="/img/about/hero_Sec.webp"
                 alt="Notebook with mental math sketches, a brain diagram, pencils and books, representing Mental Calisthenics training"
