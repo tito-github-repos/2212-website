@@ -14,6 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Turnstile from "react-turnstile";
 
 const isRepeatedDigits = (value: string) => /^(\d)\1{9}$/.test(value);
 
@@ -68,6 +69,9 @@ export default function RegisterSection() {
   });
 
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [website, setWebsite] = useState("");
+  const [formStartedAt] = useState(Date.now());
 
   const validateField = async (
     field: keyof typeof values,
@@ -83,6 +87,7 @@ export default function RegisterSection() {
     }
   };
 
+ 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
@@ -103,6 +108,10 @@ export default function RegisterSection() {
       await schema.validate(values, {
         abortEarly: false,
       });
+      if (!turnstileToken) {
+        alert("Please complete verification.");
+        return;
+      }
 
       // Clear validation errors
       setErrors({
@@ -117,7 +126,12 @@ export default function RegisterSection() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          website,
+          formStartedAt,
+          turnstileToken,
+        }),
       });
 
       const result = await response.json();
@@ -386,6 +400,30 @@ export default function RegisterSection() {
                   />
                 </Box>
 
+                <input
+                  type="text"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    left: "-9999px",
+                    width: "1px",
+                    height: "1px",
+                    opacity: 0,
+                  }}
+                />
+
+                <Turnstile
+                  sitekey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ""}
+                  onVerify={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken("")}
+                  onError={() => setTurnstileToken("")}
+                />
+
                 {/* Register Button */}
 
                 <Button
@@ -417,3 +455,4 @@ export default function RegisterSection() {
     </Box>
   );
 }
+
