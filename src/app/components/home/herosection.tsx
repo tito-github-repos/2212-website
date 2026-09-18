@@ -80,7 +80,7 @@ export default function HeroSection() {
                   },
                 }}
               >
-                Where The Focus
+                Where Focus
                 <br />
                 Goes,{" "}
                 <Box
