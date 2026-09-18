@@ -120,7 +120,14 @@ export default function GetInTouch() {
                   bgcolor: "var(--primary)",
                 }}
               />
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "var(--black)" }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  color: "var(--black)",
+                  fontSize: { xs: "1.6rem", md: "2rem" },
+                }}
+              >
                 Get in Touch
               </Typography>
             </Box>
