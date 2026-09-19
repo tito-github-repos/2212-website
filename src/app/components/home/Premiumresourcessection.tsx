@@ -17,7 +17,7 @@ import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 const worksheets = {
   title: "Worksheet Download",
   subtitle: "Unlimited access to premium worksheets.",
-  price: "₹ 212",
+  price: "₹ 222",
   priceSuffix: "/ Year",
   cta: "Download Worksheets",
   features: [
@@ -37,7 +37,7 @@ const worksheets = {
 const competition = {
   title: "Competitions",
   subtitle: "Build your confidence. Sharpen your skills.",
-  price: "₹ 2212",
+  price: "₹ 777",
   priceSuffix: "/ Year",
   cta: "Pay Now",
   infoBlocks: [
