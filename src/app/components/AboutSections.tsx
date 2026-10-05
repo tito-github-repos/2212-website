@@ -7,6 +7,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FlagIcon from "@mui/icons-material/Flag";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import Image from "next/image";
+import FormatQuoteRoundedIcon from "@mui/icons-material/FormatQuoteRounded";
 
 const leftPoints = [
   "Improves concentration and focus",
@@ -40,7 +41,15 @@ const flatSx = {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.4 }}>
-      <Box sx={{ width: 4, height: 16, bgcolor: green, borderRadius: "2px", flexShrink: 0 }} />
+      <Box
+        sx={{
+          width: 4,
+          height: 16,
+          bgcolor: green,
+          borderRadius: "2px",
+          flexShrink: 0,
+        }}
+      />
       <Typography
         sx={{
           color: green,
@@ -59,9 +68,20 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function CheckItem({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.4, minWidth: 0 }}>
-      <CheckCircleIcon sx={{ color: green, fontSize: 22, mt: "1px", flexShrink: 0 }} />
-      <Typography sx={{ color: text, fontSize: { xs: 13, md: 14 }, fontWeight: 750, lineHeight: 1.5 }}>
+    <Box
+      sx={{ display: "flex", alignItems: "flex-start", gap: 1.4, minWidth: 0 }}
+    >
+      <CheckCircleIcon
+        sx={{ color: green, fontSize: 22, mt: "1px", flexShrink: 0 }}
+      />
+      <Typography
+        sx={{
+          color: text,
+          fontSize: { xs: 13, md: 14 },
+          fontWeight: 750,
+          lineHeight: 1.5,
+        }}
+      >
         {children}
       </Typography>
     </Box>
@@ -70,7 +90,9 @@ function CheckItem({ children }: { children: React.ReactNode }) {
 
 export default function AboutSections() {
   const rightCardRef = useRef<HTMLDivElement>(null);
-  const [matchedHeight, setMatchedHeight] = useState<number | undefined>(undefined);
+  const [matchedHeight, setMatchedHeight] = useState<number | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     const rightEl = rightCardRef.current;
@@ -99,7 +121,11 @@ export default function AboutSections() {
   }, []);
 
   return (
-    <Box component="section" sx={{ bgcolor: "#fff", color: text, width: "100%", py: { xs: 5, md: 7 } }}>
+    <Box
+      component="section"
+      sx={{ bgcolor: "#fff", color: text, width: "100%", pb: { xs: 5, md: 7 }
+       }}
+    >
       <Box
         sx={{
           width: "100%",
@@ -118,7 +144,10 @@ export default function AboutSections() {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "minmax(280px, 405px) minmax(0, 1fr)" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "minmax(280px, 405px) minmax(0, 1fr)",
+            },
             gridTemplateAreas: {
               xs: `"head" "image" "checklist"`,
               sm: `"image content"`,
@@ -159,11 +188,17 @@ export default function AboutSections() {
               >
                 What is Mental Calisthenics?
               </Typography>
-              <Typography sx={{ color: muted, fontSize: { xs: 14, md: 14.5 }, lineHeight: 1.85 }}>
-                Mental Calisthenics is a systematic training of the brain through
-                math-based exercises. Just like physical exercises strengthen our
-                body, mental exercises improve our focus, memory, speed and
-                problem-solving abilities.
+              <Typography
+                sx={{
+                  color: muted,
+                  fontSize: { xs: 14, md: 14.5 },
+                  lineHeight: 1.85,
+                }}
+              >
+                Mental Calisthenics is a systematic training of the brain
+                through math-based exercises. Just like physical exercises
+                strengthen our body, mental exercises improve our focus, memory,
+                speed and problem-solving abilities.
               </Typography>
             </Box>
 
@@ -256,9 +291,16 @@ export default function AboutSections() {
             }}
           >
             <SectionLabel>Why "2212"?</SectionLabel>
-            <Typography sx={{ color: muted, fontSize: { xs: 13, md: 13.5 }, lineHeight: 1.72, mb: 1.5 }}>
-              2212 is a tribute to the birth anniversary of Srinivasa
-              Ramanujan, one of the greatest mathematicians of India.
+            <Typography
+              sx={{
+                color: muted,
+                fontSize: { xs: 13, md: 13.5 },
+                lineHeight: 1.72,
+                mb: 1.5,
+              }}
+            >
+              2212 is a tribute to the birth anniversary of Srinivasa Ramanujan,
+              one of the greatest mathematicians of India.
             </Typography>
 
             <Box
@@ -273,22 +315,54 @@ export default function AboutSections() {
                 mb: 1.4,
               }}
             >
-              <CalendarMonthIcon sx={{ color: green, fontSize: 28, flexShrink: 0 }} />
+              <CalendarMonthIcon
+                sx={{ color: green, fontSize: 28, flexShrink: 0 }}
+              />
               <Box>
-                <Typography sx={{ color: green, fontSize: { xs: 20, md: 23 }, fontWeight: 850, lineHeight: 1 }}>
+                <Typography
+                  sx={{
+                    color: green,
+                    fontSize: { xs: 20, md: 23 },
+                    fontWeight: 850,
+                    lineHeight: 1,
+                  }}
+                >
                   2212
                 </Typography>
-                <Typography sx={{ color: muted, fontSize: 11.5, fontWeight: 650, mt: 0.35 }}>
+                <Typography
+                  sx={{
+                    color: muted,
+                    fontSize: 11.5,
+                    fontWeight: 650,
+                    mt: 0.35,
+                  }}
+                >
                   22 December 1887
                 </Typography>
               </Box>
             </Box>
 
-            <Typography sx={{ color: muted, fontSize: { xs: 13, md: 13.5 }, lineHeight: 1.72, pr: 4 }}>
-              His legacy inspires us to think, explore and achieve excellence
-              in mathematics.
+            <Typography
+              sx={{
+                color: muted,
+                fontSize: { xs: 13, md: 13.5 },
+                lineHeight: 1.72,
+                pr: 4,
+              }}
+            >
+              His legacy inspires us to think, explore and achieve excellence in
+              mathematics.
             </Typography>
-            <FormatQuoteIcon sx={{ position: "absolute", right: 18, bottom: 14, color: green, opacity: 0.12, fontSize: 34 }} />
+            <FormatQuoteIcon
+              sx={{
+                position: "absolute",
+                right: 18,
+                bottom: 14,
+                color: green,
+                opacity: 0.12,
+                fontSize: 34,
+              }}
+            />
           </Box>
 
           {/* "Who is Ramanujan?" card.
@@ -337,12 +411,25 @@ export default function AboutSections() {
               </Box>
 
               <Box sx={{ gridArea: "bio", pt: { xs: 0, sm: 0.5 } }}>
-                <Typography sx={{ color: muted, fontSize: { xs: 12.5, md: 13.2 }, lineHeight: 1.78, mb: 1.5 }}>
+                <Typography
+                  sx={{
+                    color: muted,
+                    fontSize: { xs: 12.5, md: 13.2 },
+                    lineHeight: 1.78,
+                    mb: 1.5,
+                  }}
+                >
                   Srinivasa Ramanujan (1887-1920) was a self-taught
                   mathematician who made extraordinary contributions to number
                   theory, infinite series, and mathematical analysis.
                 </Typography>
-                <Typography sx={{ color: muted, fontSize: { xs: 12.5, md: 13.2 }, lineHeight: 1.78 }}>
+                <Typography
+                  sx={{
+                    color: muted,
+                    fontSize: { xs: 12.5, md: 13.2 },
+                    lineHeight: 1.78,
+                  }}
+                >
                   His work continues to inspire millions of students and
                   mathematicians around the world.
                 </Typography>
@@ -388,29 +475,79 @@ export default function AboutSections() {
               flexShrink: 0,
             }}
           >
-            <FlagIcon sx={{ color: green, fontSize: 20, transform: "translate(1px, 1px)" }} />
+            <FlagIcon
+              sx={{
+                color: green,
+                fontSize: 20,
+                transform: "translate(1px, 1px)",
+              }}
+            />
           </Box>
 
           <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
-            <Typography sx={{ color: green, fontSize: 13, fontWeight: 850, lineHeight: 1, letterSpacing: 0, textTransform: "uppercase", mb: 0.9 }}>
+            {/* <Typography sx={{ color: green, fontSize: 13, fontWeight: 850, lineHeight: 1, letterSpacing: 0, textTransform: "uppercase", mb: 0.9 }}>
               Our Mission
             </Typography>
             <Typography sx={{ color: muted, fontSize: { xs: 12.8, md: 13.5 }, lineHeight: 1.72, maxWidth: 620 }}>
               To make quality mental math training accessible to every student
               and help them build a strong foundation for a successful future.
-            </Typography>
+            </Typography> */}
+            <Box
+              component="blockquote"
+              sx={{
+                position: "relative",
+                m: 0,
+                // bgcolor: "var(--primary-light)",
+                borderRadius: 2,
+                p: { xs: 2, md: 2.25 },
+                pl: { xs: 2.5, md: 2.75 },
+                maxWidth: 460,
+              }}
+            >
+              <FormatQuoteRoundedIcon
+                sx={{
+                  color: "var(--primary)",
+                  fontSize: 20,
+                  opacity: 0.6,
+                  display: "block",
+                  mb: 0.5,
+                }}
+              />
+              <Typography
+                component="p"
+                sx={{
+                  color: "var(--black)",
+                  fontStyle: "italic",
+                  fontSize: { xs: "0.85rem", md: "0.9rem" },
+                  lineHeight: 1.6,
+                }}
+              >
+                &ldquo;Mathematics is not about numbers, equations, computations
+                or algorithms: it is about understanding.&rdquo;
+              </Typography>
+              <Typography
+                component="footer"
+                sx={{
+                  mt: 1,
+                  fontWeight: 600,
+                  color: "var(--primary)",
+                  fontSize: "0.85rem",
+                }}
+              >
+                — Srinivasa Ramanujan
+              </Typography>
+            </Box>
           </Box>
 
           <Box
             sx={{
-                position: "relative",
-                width: { xs: "100%", md: "100%" },
-                height: { xs: 110, md: 100 },
-                mx: "auto",
-                mt: 1,
-                overflow: "hidden",
-                borderRadius: "6px",
-    
+              position: "relative",
+              width: { xs: "100%", md: "100%" },
+              height: { xs: 110, md: 100 },
+              mx: "auto",
+              mt: 1,
+              overflow: "hidden",
+              borderRadius: "6px",
             }}
           >
             {/* The source asset has a flat, opaque background baked in
@@ -430,7 +567,7 @@ export default function AboutSections() {
                 objectFit: "cover",
                 objectPosition: "center",
                 transform: "scale(1.08)",
-                }}
+              }}
             />
           </Box>
         </Box>

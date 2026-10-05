@@ -56,7 +56,8 @@ export default function HeroSection() {
             >
               <Chip
                 icon={<AutoAwesomeIcon />}
-                label="Sharpen Your Mind. Achieve Your Best."
+                // label="Sharpen Your Mind. Achieve Your Best."
+                label="Improve your attention span of your child"
                 sx={{
                   bgcolor: "#E9F9EE",
                   color: "#17A34A",
@@ -106,9 +107,10 @@ export default function HeroSection() {
                   },
                 }}
               >
-                Mental Calisthenics for a sharper mind, stronger memory and a
+                {/* Mental Calisthenics for a sharper mind, stronger memory and a
                 brighter future through engaging activities and structured
-                learning.
+                learning. */}
+                Mental Calisthenics exercises for a sharper mind and stronger memory.
               </Typography>
 
               <Stack
@@ -142,7 +144,8 @@ export default function HeroSection() {
                     },
                   }}
                 >
-                  Start Learning
+                  {/* Start Learning */}
+                  Download Worksheets
                 </Button>
 
                 <Button

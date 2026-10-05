@@ -1,35 +1,61 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import NextLink from "next/link";
-import { Box, Container, Stack, Typography, Button, Divider } from "@mui/material";
+import {
+  Box,
+  Container,
+  Stack,
+  Typography,
+  Button,
+  Divider,
+} from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CheckIcon from "@mui/icons-material/Check";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 
-const worksheets = {
-  title: "Worksheet Download",
-  subtitle: "Unlimited access to premium worksheets.",
-  price: "₹ 222",
+import AccessModal, { type Product } from "./AccessModal";
+
+const GREEN = "#19B44A";
+const GREEN_DARK = "#12953c";
+const GREEN_DARKER = "#0e7d32";
+
+/* ---------------- Download Worksheets banner data ---------------- */
+const downloadBanner = {
+  title: "Download Worksheets",
+  tagline: "Do daily. Drill daily.",
+  price: "₹ 729",
   priceSuffix: "/ Year",
   cta: "Download Worksheets",
+  features: [
+    "Unlimited worksheet downloads",
+    "Valid for one full year",
+    "Eligible to join the competitions",
+  ],
+};
+
+const worksheets = {
+  title: "About MCE Worksheets",
+  subtitle: "Unlimited access to premium worksheets.",
   features: [
     "Best Brain fitness material.",
     "Best source for any aptitude based exams.",
     "Best material for any competitive exams.",
-    "Best practice material - CSAT, CAT, XAT, IPMAT, CUCET, SAT, GMAT, LSAT, CLAT.",
+    "Best practice material - CSAT, CAT, XAT, IPMAT, CUCET, SAT, GMAT, LSAT, CLAT, NDA, CDSE.",
   ],
   colors: {
     bg: "linear-gradient(180deg, #E9F9EE 0%, #F3FBF6 100%)",
-    accent: "#19B44A",
-    accentDark: "#12953c",
+    accent: GREEN,
+    accentDark: GREEN_DARK,
     blobBg: "#CFF3DA",
   },
 };
@@ -37,9 +63,6 @@ const worksheets = {
 const competition = {
   title: "Competitions",
   subtitle: "Build your confidence. Sharpen your skills.",
-  price: "₹ 777",
-  priceSuffix: "/ Year",
-  cta: "Pay Now",
   infoBlocks: [
     {
       icon: CalendarMonthOutlinedIcon,
@@ -66,6 +89,341 @@ const competition = {
   },
 };
 
+/* ---------------- Worksheet paper illustration (left of banner) ---------------- */
+function WorksheetIllustration() {
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        width: 210,
+        height: 190,
+        minWidth: 210,
+        display: { xs: "none", md: "block" },
+      }}
+    >
+      {/* Soft round backdrop */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 10,
+          left: 0,
+          width: 150,
+          height: 160,
+          borderRadius: "50%",
+          bgcolor: "rgba(25,180,74,0.10)",
+        }}
+      />
+
+      {/* Tilted paper */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 6,
+          left: 50,
+          width: 128,
+          height: 158,
+          bgcolor: "#fff",
+          borderRadius: 3,
+          transform: "rotate(-8deg)",
+          boxShadow: "0 14px 28px rgba(25,180,74,0.18)",
+          p: 1.75,
+        }}
+      >
+        {/* Logo */}
+        <Typography
+          sx={{
+            fontWeight: 800,
+            color: GREEN,
+            fontSize: 13,
+            lineHeight: 1,
+            mb: 1.5,
+          }}
+        >
+          2212
+        </Typography>
+
+        {/* Checklist rows */}
+        <Stack spacing={1.25}>
+          {[0, 1, 2].map((i) => (
+            <Stack
+              key={i}
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center" }}
+            >
+              <Box
+                sx={{
+                  width: 15,
+                  height: 15,
+                  minWidth: 15,
+                  borderRadius: 0.75,
+                  bgcolor: GREEN,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <CheckIcon sx={{ color: "#fff", fontSize: 12 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}>
+                <Box
+                  sx={{
+                    height: 4,
+                    borderRadius: 2,
+                    bgcolor: "#D5DCD8",
+                    mb: 0.6,
+                  }}
+                />
+                <Box
+                  sx={{
+                    height: 4,
+                    width: "65%",
+                    borderRadius: 2,
+                    bgcolor: "#E4E9E6",
+                  }}
+                />
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* Download badge */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 4,
+          right: 22,
+          width: 66,
+          height: 66,
+          borderRadius: "50%",
+          bgcolor: GREEN,
+          border: "4px solid #fff",
+          boxShadow: "0 10px 20px rgba(25,180,74,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <FileDownloadOutlinedIcon sx={{ color: "#fff", fontSize: 36 }} />
+      </Box>
+
+      {/* Little sparkle strokes */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 8,
+          right: 4,
+          width: 14,
+          height: 3,
+          bgcolor: GREEN,
+          borderRadius: 2,
+          transform: "rotate(-35deg)",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          top: 26,
+          right: -4,
+          width: 14,
+          height: 3,
+          bgcolor: GREEN,
+          borderRadius: 2,
+          transform: "rotate(10deg)",
+        }}
+      />
+    </Box>
+  );
+}
+
+/* ---------------- Download Worksheets banner ---------------- */
+function DownloadBanner({ onDownload }: { onDownload: () => void }) {
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        maxWidth: 1180,
+        mx: "auto",
+        mb: { xs: 3, md: 3.5 },
+        borderRadius: 5,
+        background: "linear-gradient(180deg, #E9F9EE 0%, #F3FBF6 100%)",
+        border: "1px solid #CFEFD9",
+        p: { xs: 3, md: 3.5 },
+      }}
+    >
+      {/* Corner blobs */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: -60,
+          left: -50,
+          width: 190,
+          height: 190,
+          borderRadius: "50%",
+          bgcolor: "rgba(25,180,74,0.10)",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: -70,
+          right: -50,
+          width: 190,
+          height: 190,
+          borderRadius: "50%",
+          bgcolor: "rgba(25,180,74,0.10)",
+        }}
+      />
+
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={{ xs: 3, md: 3 }}
+        sx={{ position: "relative", zIndex: 1, alignItems: "center" }}
+      >
+        <WorksheetIllustration />
+
+        {/* Middle: title + features */}
+        <Box sx={{ flexGrow: 1, width: "100%" }}>
+          <Stack direction="row" sx={{ alignItems: "center", gap: 1.5, mb: 2 }}>
+            {/* Icon: mobile only */}
+            <Box
+              sx={{
+                display: { xs: "flex", md: "none" },
+                width: 44,
+                height: 44,
+                minWidth: 44,
+                borderRadius: 2.5,
+                bgcolor: GREEN,
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 8px 16px rgba(25,180,74,0.3)",
+              }}
+            >
+              <DescriptionOutlinedIcon sx={{ color: "#fff", fontSize: 24 }} />
+            </Box>
+
+            <Box>
+              <Typography
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1.35rem", md: "2.1rem" },
+                  color: "#111",
+                  lineHeight: 1.15,
+                }}
+              >
+                {downloadBanner.title}
+              </Typography>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: "1rem", md: "1.35rem" },
+                  color: GREEN,
+                  mt: 0.25,
+                }}
+              >
+                {downloadBanner.tagline}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack spacing={1.25}>
+            {downloadBanner.features.map((f) => (
+              <Stack
+                key={f}
+                direction="row"
+                spacing={1.5}
+                sx={{ alignItems: "center" }}
+              >
+                <CheckCircleIcon sx={{ color: GREEN, fontSize: 22 }} />
+                <Typography
+                  sx={{ fontSize: { xs: 14.5, md: 16 }, color: "#4B5563" }}
+                >
+                  {f}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+
+        {/* Divider (vertical on desktop, horizontal on mobile) */}
+        <Divider
+          orientation="vertical"
+          flexItem
+          sx={{
+            display: { xs: "none", md: "block" },
+            borderColor: "#C6E9D1",
+            my: 1,
+          }}
+        />
+        <Divider
+          sx={{
+            display: { xs: "block", md: "none" },
+            width: "100%",
+            borderColor: "#C6E9D1",
+          }}
+        />
+
+        {/* Right: price + CTA */}
+        <Stack
+          spacing={2}
+          sx={{ width: { xs: "100%", md: 300 }, minWidth: { md: 300 } }}
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: "baseline",
+              justifyContent: "center",
+              bgcolor: "#fff",
+              border: "1px solid #BFE8CC",
+              borderRadius: 3,
+              py: 1.25,
+              px: 2,
+            }}
+          >
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: "2rem", md: "2.6rem" },
+                color: GREEN_DARK,
+                lineHeight: 1.1,
+              }}
+            >
+              {downloadBanner.price}
+            </Typography>
+            <Typography sx={{ color: "#6B7280", fontSize: "1rem" }}>
+              {downloadBanner.priceSuffix}
+            </Typography>
+          </Stack>
+
+          <Button
+            variant="contained"
+            fullWidth
+            endIcon={<ArrowForwardIcon />}
+            // onClick={onDownload}
+            sx={{
+              bgcolor: GREEN_DARK,
+              color: "#fff",
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: { xs: "0.95rem", md: "1.05rem" },
+              borderRadius: 3,
+              py: 1.5,
+              boxShadow: "0 10px 20px rgba(18,149,60,0.3)",
+              "&:hover": { bgcolor: GREEN_DARKER },
+            }}
+          >
+            {downloadBanner.cta}
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+/* ---------------- Existing card pieces ---------------- */
 function CardHeader({
   Icon,
   title,
@@ -97,7 +455,7 @@ function CardHeader({
         >
           <Icon sx={{ color: accent, fontSize: 38 }} />
         </Box>
-        {showBadge && (
+        {/* {showBadge && (
           <Box
             sx={{
               position: "absolute",
@@ -115,7 +473,7 @@ function CardHeader({
           >
             <ArrowDownwardIcon sx={{ color: "#fff", fontSize: 16 }} />
           </Box>
-        )}
+        )} */}
       </Box>
       <Box sx={{ pt: 0.5 }}>
         <Typography
@@ -130,7 +488,11 @@ function CardHeader({
         </Typography>
         <Typography
           variant="body2"
-          sx={{ color: "#6B7280", fontSize: { xs: "0.85rem", md: "0.9rem" }, mt: 0.5 }}
+          sx={{
+            color: "#6B7280",
+            fontSize: { xs: "0.85rem", md: "0.9rem" },
+            mt: 0.5,
+          }}
         >
           {subtitle}
         </Typography>
@@ -139,62 +501,9 @@ function CardHeader({
   );
 }
 
-function PriceBar({
-  price,
-  priceSuffix,
-  cta,
-  accent,
-  accentDark,
-}: {
-  price: string;
-  priceSuffix: string;
-  cta: string;
-  accent: string;
-  accentDark: string;
-}) {
-  return (
-    <Stack
-      direction="row"
-      spacing={2}
-      sx={{
-        alignItems: "center",
-        justifyContent: "space-between",
-        bgcolor: "#fff",
-        borderRadius: 3,
-        p: { xs: 1.5, md: 2 },
-        boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-      }}
-    >
-      <Stack direction="row" spacing={0.75} sx={{ alignItems: "baseline" }}>
-        <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.5rem", md: "1.8rem" }, color: accent }}>
-          {price}
-        </Typography>
-        <Typography sx={{ color: "#6B7280", fontSize: { xs: "0.85rem", md: "0.95rem" } }}>
-          {priceSuffix}
-        </Typography>
-      </Stack>
-      <Button
-        variant="contained"
-        endIcon={<ArrowForwardIcon />}
-        sx={{
-          bgcolor: accent,
-          textTransform: "none",
-          fontWeight: 700,
-          borderRadius: 2.5,
-          py: 1.1,
-          px: { xs: 2, md: 3 },
-          fontSize: { xs: "0.85rem", md: "0.95rem" },
-          whiteSpace: "nowrap",
-          "&:hover": { bgcolor: accentDark },
-        }}
-      >
-        {cta}
-      </Button>
-    </Stack>
-  );
-}
-
 export default function PremiumResourcesSection() {
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+
   return (
     <Box
       id="premium-resources"
@@ -206,53 +515,8 @@ export default function PremiumResourcesSection() {
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        <Stack
-          spacing={2}
-          sx={{ textAlign: "center", alignItems: "center", mb: { xs: 4, md: 5 } }}
-        >
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-              alignItems: "center",
-              bgcolor: "#E9F9EE",
-              color: "#19B44A",
-              px: 2,
-              py: 0.6,
-              borderRadius: 5,
-              fontWeight: 700,
-              fontSize: "0.85rem",
-            }}
-          >
-            <WorkspacePremiumIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{ fontWeight: 700, fontSize: "0.85rem" }}>
-              Premium Resources
-            </Typography>
-          </Stack>
-
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 800,
-              color: "#111",
-              fontSize: { xs: "1.8rem", sm: "2.2rem", md: "2.6rem" },
-            }}
-          >
-            Premium <Box component="span" sx={{ color: "#19B44A" }}>Resources</Box> & Products
-          </Typography>
-
-          <Typography
-            variant="body1"
-            sx={{
-              fontSize: { xs: "0.95rem", md: "1.05rem" },
-              maxWidth: 560,
-              mx: "auto",
-              color: "#6B7280",
-            }}
-          >
-            Quality resources to help you practice better and perform your best.
-          </Typography>
-        </Stack>
+        {/* Download Worksheets banner */}
+        <DownloadBanner onDownload={() => setActiveProduct("WORKSHEET")} />
 
         <Box
           sx={{
@@ -263,7 +527,7 @@ export default function PremiumResourcesSection() {
             mx: "auto",
           }}
         >
-          {/* Worksheet Download card */}
+          {/* About MCE Worksheets card */}
           <Box
             sx={{
               position: "relative",
@@ -299,7 +563,9 @@ export default function PremiumResourcesSection() {
                   justifyContent: "center",
                 }}
               >
-                <DescriptionOutlinedIcon sx={{ fontSize: 52, color: "#19B44A", opacity: 0.35 }} />
+                <DescriptionOutlinedIcon
+                  sx={{ fontSize: 52, color: "#19B44A", opacity: 0.35 }}
+                />
               </Box>
             </Box>
 
@@ -314,22 +580,28 @@ export default function PremiumResourcesSection() {
 
             <Stack spacing={1.5} sx={{ flexGrow: 1, zIndex: 1 }}>
               {worksheets.features.map((f) => (
-                <Stack key={f} direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
-                  <CheckCircleIcon sx={{ color: worksheets.colors.accent, fontSize: 19, mt: 0.15 }} />
-                  <Typography variant="body2" sx={{ fontSize: { xs: 13.5, md: 14.5 }, color: "#333" }}>
+                <Stack
+                  key={f}
+                  direction="row"
+                  spacing={1.25}
+                  sx={{ alignItems: "flex-start" }}
+                >
+                  <CheckCircleIcon
+                    sx={{
+                      color: worksheets.colors.accent,
+                      fontSize: 19,
+                      mt: 0.15,
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ fontSize: { xs: 13.5, md: 14.5 }, color: "#333" }}
+                  >
                     {f}
                   </Typography>
                 </Stack>
               ))}
             </Stack>
-
-            <PriceBar
-              price={worksheets.price}
-              priceSuffix={worksheets.priceSuffix}
-              cta={worksheets.cta}
-              accent={worksheets.colors.accent}
-              accentDark={worksheets.colors.accentDark}
-            />
           </Box>
 
           {/* Competitions card */}
@@ -356,8 +628,12 @@ export default function PremiumResourcesSection() {
                 alignItems: "center",
               }}
             >
-              <GpsFixedIcon sx={{ fontSize: 70, color: "#E8A800", opacity: 0.25, mr: -3 }} />
-              <MenuBookIcon sx={{ fontSize: 46, color: "#19B44A", opacity: 0.3, mt: 5 }} />
+              <GpsFixedIcon
+                sx={{ fontSize: 70, color: "#E8A800", opacity: 0.25, mr: -3 }}
+              />
+              <MenuBookIcon
+                sx={{ fontSize: 46, color: "#19B44A", opacity: 0.3, mt: 5 }}
+              />
             </Box>
 
             <CardHeader
@@ -371,7 +647,11 @@ export default function PremiumResourcesSection() {
             <Stack spacing={0} sx={{ flexGrow: 1, zIndex: 1 }}>
               {competition.infoBlocks.map((block, i) => (
                 <React.Fragment key={block.textBefore}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start", py: 1.5 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: "flex-start", py: 1.5 }}
+                  >
                     <Box
                       sx={{
                         width: 38,
@@ -384,9 +664,18 @@ export default function PremiumResourcesSection() {
                         justifyContent: "center",
                       }}
                     >
-                      <block.icon sx={{ color: competition.colors.accent, fontSize: 20 }} />
+                      <block.icon
+                        sx={{ color: competition.colors.accent, fontSize: 20 }}
+                      />
                     </Box>
-                    <Typography variant="body2" sx={{ fontSize: { xs: 13.5, md: 14.5 }, color: "#333", lineHeight: 1.5 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: { xs: 13.5, md: 14.5 },
+                        color: "#333",
+                        lineHeight: 1.5,
+                      }}
+                    >
                       {block.textBefore}
                       {block.linkText && (
                         <Box
@@ -412,17 +701,16 @@ export default function PremiumResourcesSection() {
                 </React.Fragment>
               ))}
             </Stack>
-
-            <PriceBar
-              price={competition.price}
-              priceSuffix={competition.priceSuffix}
-              cta={competition.cta}
-              accent={competition.colors.accent}
-              accentDark={competition.colors.accentDark}
-            />
           </Box>
         </Box>
       </Container>
+
+      {activeProduct && (
+        <AccessModal
+          product={activeProduct}
+          onClose={() => setActiveProduct(null)}
+        />
+      )}
     </Box>
   );
 }
