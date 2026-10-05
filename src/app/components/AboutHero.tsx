@@ -232,7 +232,8 @@ export default function AboutHero() {
                     fontSize: { xs: "2rem", md: "2.5rem" },
                   }}
                 >
-                  About Us
+                  {/* About Us */}
+                  Our Mission
                 </Typography>
                 <Box
                   sx={{
@@ -256,10 +257,12 @@ export default function AboutHero() {
                   lineHeight: 1.55,
                 }}
               >
-                Empowering young minds through Mental Calisthenics.
+                {/* Empowering young minds through Mental Calisthenics. */}
+                To make quality mental math training accessible to every student
+                and help them build a strong foundation for a successful future.
               </Typography>
 
-              <Box
+              {/* <Box
                 component="blockquote"
                 sx={{
                   position: "relative",
@@ -289,16 +292,21 @@ export default function AboutHero() {
                     lineHeight: 1.6,
                   }}
                 >
-                  &ldquo;Mathematics is not about numbers, equations, computations
-                  or algorithms: it is about understanding.&rdquo;
+                  &ldquo;Mathematics is not about numbers, equations,
+                  computations or algorithms: it is about understanding.&rdquo;
                 </Typography>
                 <Typography
                   component="footer"
-                  sx={{ mt: 1, fontWeight: 600, color: "var(--primary)", fontSize: "0.85rem" }}
+                  sx={{
+                    mt: 1,
+                    fontWeight: 600,
+                    color: "var(--primary)",
+                    fontSize: "0.85rem",
+                  }}
                 >
                   — Srinivasa Ramanujan
                 </Typography>
-              </Box>
+              </Box> */}
             </Stack>
           </Box>
 
@@ -313,7 +321,7 @@ export default function AboutHero() {
               flex: "1 1 320px",
               minWidth: 0,
               maxWidth: 460,
-            }} 
+            }}
           >
             <Box
               sx={{
@@ -326,7 +334,7 @@ export default function AboutHero() {
                 WebkitMaskImage:
                   "radial-gradient(ellipse 75% 75% at center, #000 55%, transparent 100%)",
               }}
-            > 
+            >
               <Image
                 src="/img/about/hero_Sec.webp"
                 alt="Notebook with mental math sketches, a brain diagram, pencils and books, representing Mental Calisthenics training"
