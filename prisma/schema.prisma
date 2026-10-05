@@ -1,26 +1,55 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum Product {
+  WORKSHEET
+  COMPETITION
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
 }
 
 model registration {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String    @unique
   mobile    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
+  payments  payment[]
+}
 
+model payment {
+  id                Int           @id @default(autoincrement())
+  registrationId    Int
+  registration      registration  @relation(fields: [registrationId], references: [id])
+
+  product           Product
+  amount            Int                         // in paise (₹222 → 22200)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?       @unique
+
+  paidAt            DateTime?
+  validUntil        DateTime?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([registrationId, product, status, validUntil])
 }
