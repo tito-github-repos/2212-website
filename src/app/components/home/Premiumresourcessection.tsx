@@ -11,12 +11,10 @@ import {
   Divider,
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CheckIcon from "@mui/icons-material/Check";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -48,9 +46,9 @@ const worksheets = {
   subtitle: "Unlimited access to premium worksheets.",
   features: [
     "Best Brain fitness material.",
-    "Best source for any aptitude based exams.",
-    "Best material for any competitive exams.",
-    "Best practice material - CSAT, CAT, XAT, IPMAT, CUCET, SAT, GMAT, LSAT, CLAT, NDA, CDSE.",
+    "Super source for any aptitude exams.",
+    // "Best material for any competitive exams.",
+    "Perfect practice material - CSAT, CAT, XAT, IPMAT, CUCET, SAT, GMAT, LSAT, CLAT, NDA, CDSE.",
   ],
   colors: {
     bg: "linear-gradient(180deg, #E9F9EE 0%, #F3FBF6 100%)",
