@@ -20,10 +20,21 @@ import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 
 const features = [
-  { icon: TrackChangesOutlinedIcon, line1: "Improve", line2: "Focus" },
-  { icon: PsychologyAltOutlinedIcon, line1: "Stronger", line2: "Memory" },
-  { icon: BoltOutlinedIcon, line1: "Think", line2: "Faster" },
-  { icon: EmojiEventsOutlinedIcon, line1: "Excel in", line2: "Competitions" },
+  {
+    icon: TrackChangesOutlinedIcon,
+    line1: "Lens",
+    line2: "Focus",
+  },
+  {
+    icon: PsychologyAltOutlinedIcon,
+    line1: "Elephant",
+    line2: "Memory",
+  },
+  {
+    icon: BoltOutlinedIcon,
+    line1: "Razor",
+    line2: "Sharp",
+  },
 ];
 
 export default function HeroSection() {
@@ -181,7 +192,7 @@ export default function HeroSection() {
               {/* Features */}
               <Grid
                 container
-                spacing={{ xs: 2, md: 3 }}
+                spacing={{ xs: 1, sm: 2, md: 3 }}
                 sx={{
                   width: "100%",
                   mt: { xs: 1, md: 2 },
@@ -195,12 +206,12 @@ export default function HeroSection() {
                 {features.map(({ icon: Icon, line1, line2 }) => (
                   <Grid
                     key={line1 + line2}
-                    size={{ xs: 6, sm: 3, md: 3 }}
+                    size={{ xs: 4, sm: 4, md: "auto" }}
                     sx={{ minWidth: 0 }}
                   >
                     <Stack
-                      direction="row"
-                      spacing={1.5}
+                      direction={{ xs: "column", sm: "column", md: "row" }}
+                      spacing={{ xs: 0.75, md: 1.25 }}
                       sx={{
                         alignItems: "center",
                         justifyContent: {
@@ -210,30 +221,47 @@ export default function HeroSection() {
                         },
                       }}
                     >
-                      <Icon
+                      {/* Small circle icon */}
+                      <Box
                         sx={{
-                          color: "#19B44A",
-                          fontSize: { xs: 32, sm: 26, md: 32 },
+                          width: { xs: 36, md: 40 },
+                          height: { xs: 36, md: 40 },
+                          borderRadius: "50%",
+                          bgcolor: "#E9F9EE",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           flexShrink: 0,
                         }}
-                      />
+                      >
+                        <Icon
+                          sx={{
+                            color: "#17A34A",
+                            fontSize: { xs: 20, md: 22 },
+                          }}
+                        />
+                      </Box>
+
+                      {/* Text: 2 lines on mobile, 1 line on desktop */}
                       <Typography
                         variant="body2"
                         sx={{
-                          color: "var(--black)",
+                          color: "#111",
                           fontWeight: 700,
                           lineHeight: 1.3,
-                          textAlign: "left",
+                          textAlign: { xs: "center", md: "left" },
                           whiteSpace: "nowrap",
                           fontSize: {
-                            xs: "0.875rem",
-                            sm: "0.75rem",
+                            xs: "0.8rem",
                             md: "0.875rem",
                           },
                         }}
                       >
-                        {line1}
-                        <br />
+                        {line1}{" "}
+                        <Box
+                          component="br"
+                          sx={{ display: { xs: "block", md: "none" } }}
+                        />
                         {line2}
                       </Typography>
                     </Stack>
