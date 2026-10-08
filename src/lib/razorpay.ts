@@ -6,8 +6,7 @@ export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
-  WORKSHEET: { label: "Worksheet Download", amount: 22200 },
-  COMPETITION: { label: "Competitions", amount: 77700 },
+  WORKSHEET: { label: "Worksheet Download", amount: 72900 },
 };
 
 // Change validity rules here (e.g. a fixed cutoff for COMPETITION)

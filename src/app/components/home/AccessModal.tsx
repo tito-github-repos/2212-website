@@ -20,7 +20,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-export type Product = "WORKSHEET" | "COMPETITION";
+export type Product = "WORKSHEET";
 type Step = "email" | "register" | "unpaid" | "paid" | "success";
 
 declare global {
@@ -33,8 +33,7 @@ declare global {
 }
 
 const PRODUCT_INFO: Record<Product, { label: string; price: string }> = {
-  WORKSHEET: { label: "Worksheet Download", price: "₹222" },
-  COMPETITION: { label: "Competitions", price: "₹777" },
+  WORKSHEET: { label: "Worksheet Download", price: "₹729" },
 };
 
 // TODO: replace with the real team details
