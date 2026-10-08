@@ -12,6 +12,9 @@ const csp = `
     'self'
     'unsafe-inline'
     'unsafe-eval'
+    https://checkout.razorpay.com
+    https://api.razorpay.com
+    https://cdn.razorpay.com
     https://maps.googleapis.com
     https://maps.gstatic.com
     https://www.google.com
@@ -37,12 +40,17 @@ const csp = `
 
   connect-src
     'self'
+     https://api.razorpay.com
+    https://checkout.razorpay.com
+    https://lumberjack.razorpay.com
     https://maps.googleapis.com
     https://maps.gstatic.com
     https://challenges.cloudflare.com;
 
   frame-src
     'self'
+       https://checkout.razorpay.com
+    https://api.razorpay.com
     https://www.google.com
     https://maps.google.com
     https://challenges.cloudflare.com;

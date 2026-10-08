@@ -1,8 +1,48 @@
+// import StudentConfirmation from "@/templates/studentConfirmation";
+// import { resend } from "./resend";
+// import AdminNotification from "@/templates/adminNotification";
+
+
+
+// interface StudentConfirmationData {
+//   name: string;
+//   email: string;
+// }
+
+// interface AdminNotificationData {
+//   name: string;
+//   email: string;
+//   mobile: string;
+ 
+// }
+
+// export async function sendStudentConfirmation(
+//   data: StudentConfirmationData
+// ) {
+//   await resend.emails.send({
+//     from: process.env.FROM_EMAIL!,
+//     to: data.email,
+//     subject: "2212 Website Registration Confirmation",
+//     react: <StudentConfirmation {...data} />,
+//   });
+// }
+
+// export async function sendAdminNotification(
+//   data: AdminNotificationData
+// ) {
+//   await resend.emails.send({
+//     from: process.env.FROM_EMAIL!,
+//     to: process.env.ADMIN_EMAIL!,
+//     subject: "New 2212 Website Registration",
+//     react: <AdminNotification {...data} />,
+//   });
+// }
+
 import StudentConfirmation from "@/templates/studentConfirmation";
 import { resend } from "./resend";
 import AdminNotification from "@/templates/adminNotification";
-
-
+import PaymentConfirmation from "@/templates/paymentConfirmation";
+import PaymentAdminNotification from "@/templates/paymentAdminNotification";
 
 interface StudentConfirmationData {
   name: string;
@@ -13,12 +53,17 @@ interface AdminNotificationData {
   name: string;
   email: string;
   mobile: string;
- 
 }
 
-export async function sendStudentConfirmation(
-  data: StudentConfirmationData
-) {
+interface PaymentDetails {
+  productLabel: string;
+  amountText: string;
+  paymentId: string;
+  paidOn: string;
+  validTill: string;
+}
+
+export async function sendStudentConfirmation(data: StudentConfirmationData) {
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: data.email,
@@ -27,13 +72,34 @@ export async function sendStudentConfirmation(
   });
 }
 
-export async function sendAdminNotification(
-  data: AdminNotificationData
-) {
+export async function sendAdminNotification(data: AdminNotificationData) {
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: process.env.ADMIN_EMAIL!,
     subject: "New 2212 Website Registration",
     react: <AdminNotification {...data} />,
+  });
+}
+
+export async function sendPaymentConfirmation(
+  data: { name: string; email: string } & PaymentDetails,
+) {
+  const { email, ...rest } = data;
+  await resend.emails.send({
+    from: process.env.FROM_EMAIL!,
+    to: email,
+    subject: "2212 Payment Confirmation",
+    react: <PaymentConfirmation {...rest} />,
+  });
+}
+
+export async function sendPaymentAdminNotification(
+  data: { name: string; email: string; mobile: string } & PaymentDetails,
+) {
+  await resend.emails.send({
+    from: process.env.FROM_EMAIL!,
+    to: process.env.ADMIN_EMAIL!,
+    subject: "New 2212 Payment Received",
+    react: <PaymentAdminNotification {...data} />,
   });
 }

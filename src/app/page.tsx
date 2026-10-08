@@ -14,7 +14,7 @@ export default function Home() {
       <AppDownloadSection />
       <PremiumResourcesSection />
       <CompetitionsSection />
-      <DailyPracticeSection />
+      {/* <DailyPracticeSection /> */}
       <RegisterSection />
     </>
   );
