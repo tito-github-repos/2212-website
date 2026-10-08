@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyPaymentSuccess } from "@/lib/payment-notifications";
 import { prisma } from "@/lib/prisma";
 import { getValidUntil, verifyWebhookSignature } from "@/lib/razorpay";
 
@@ -37,9 +38,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
+    // if (payment.status !== "PAID") {
+    //   const paidAt = new Date();
+    //   await prisma.payment.updateMany({
+    //     where: { razorpayOrderId: orderId, status: { not: "PAID" } },
+    //     data: {
+    //       status: "PAID",
+    //       razorpayPaymentId: paymentId,
+    //       paidAt,
+    //       validUntil: getValidUntil(payment.product, paidAt),
+    //     },
+    //   });
+    // }
+
     if (payment.status !== "PAID") {
       const paidAt = new Date();
-      await prisma.payment.updateMany({
+      const { count } = await prisma.payment.updateMany({
         where: { razorpayOrderId: orderId, status: { not: "PAID" } },
         data: {
           status: "PAID",
@@ -48,6 +62,10 @@ export async function POST(req: NextRequest) {
           validUntil: getValidUntil(payment.product, paidAt),
         },
       });
+
+      if (count > 0) {
+        after(() => notifyPaymentSuccess(orderId));
+      }
     }
 
     return NextResponse.json({ received: true });
