@@ -337,6 +337,7 @@ export default function Header() {
               gap: 1.5,
             }}
           >
+            {/* Practice Now Button */}
             {/* <Button
               component={Link}
               href="/practice"
