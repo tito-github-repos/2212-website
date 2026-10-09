@@ -46,6 +46,21 @@ const registerButtonSx = {
   },
 } as const;
 
+const loginButtonSx = {
+  textTransform: "none",
+  fontWeight: 600,
+  borderRadius: 8,
+  px: 2.5,
+  color: "var(--primary)",
+  borderColor: "var(--primary)",
+  transition: "background 0.3s ease, transform 0.3s ease",
+  "&:hover": {
+    borderColor: "var(--primary)",
+    backgroundColor: "var(--primary-light)",
+    transform: "translateY(-1px)",
+  },
+} as const;
+
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -57,7 +72,7 @@ export default function Header() {
   const handleClose = () => setMobileOpen(false);
 
   // derived value — no effect needed
-const isDrawerOpen = mobileOpen && !isDesktop;
+  const isDrawerOpen = mobileOpen && !isDesktop;
 
   // useEffect(() => {
   //   if (isDesktop && mobileOpen) {
@@ -189,7 +204,7 @@ const isDrawerOpen = mobileOpen && !isDesktop;
                 );
               })}
 
-              {/* Vertical divider between nav links and register */}
+              {/* Vertical divider between nav links and buttons */}
               <Box
                 sx={{
                   width: "1px",
@@ -198,6 +213,16 @@ const isDrawerOpen = mobileOpen && !isDesktop;
                   mx: 2,
                 }}
               />
+
+              {/* Login button (opens the practice login screen) */}
+              {/* <Button
+                component={Link}
+                href="/practice"
+                variant="outlined"
+                sx={{ ...loginButtonSx, mr: 1 }}
+              >
+                Practice Now
+              </Button> */}
 
               <Button
                 component={Link}
@@ -303,7 +328,25 @@ const isDrawerOpen = mobileOpen && !isDesktop;
               );
             })}
           </List>
-          <Box sx={{ px: 2, mt: 2 }}>
+          <Box
+            sx={{
+              px: 2,
+              mt: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.5,
+            }}
+          >
+            {/* <Button
+              component={Link}
+              href="/practice"
+              onClick={handleClose}
+              variant="outlined"
+              fullWidth
+              sx={loginButtonSx}
+            >
+              Practice Now
+            </Button> */}
             <Button
               component={Link}
               href="/#register"
