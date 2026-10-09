@@ -18,7 +18,9 @@ const csp = `
     https://maps.googleapis.com
     https://maps.gstatic.com
     https://www.google.com
-    https://challenges.cloudflare.com;
+    https://challenges.cloudflare.com
+    https://apis.google.com
+    https://www.gstatic.com;
 
   style-src
     'self'
@@ -40,20 +42,23 @@ const csp = `
 
   connect-src
     'self'
-     https://api.razorpay.com
+    https://api.razorpay.com
     https://checkout.razorpay.com
     https://lumberjack.razorpay.com
     https://maps.googleapis.com
     https://maps.gstatic.com
-    https://challenges.cloudflare.com;
+    https://challenges.cloudflare.com
+    https://*.googleapis.com;
 
   frame-src
     'self'
-       https://checkout.razorpay.com
+    https://checkout.razorpay.com
     https://api.razorpay.com
     https://www.google.com
     https://maps.google.com
-    https://challenges.cloudflare.com;
+    https://challenges.cloudflare.com
+    https://project-4860661541330203045.firebaseapp.com
+    https://accounts.google.com;
 
   worker-src
     'self'
@@ -95,7 +100,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: "camera=(), microphone=(self), geolocation=()",
           },
           {
             key: "Strict-Transport-Security",
