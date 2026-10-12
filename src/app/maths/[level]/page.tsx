@@ -866,48 +866,41 @@ import {
   serverTimestamp,
   where,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
-import {
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  Container,
-  IconButton,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { auth, db } from "../../../lib/firebase";
+import { areAnswersEquivalent } from "../../../lib/answerMatch";
+import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
+import { checkQuestionBank } from "../../../lib/questionCheck";
+
+import { keyframes } from "@emotion/react";
+import Alert from "@mui/material/Alert";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Container from "@mui/material/Container";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import MicIcon from "@mui/icons-material/Mic";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
-import { auth, db } from "@/lib/firebase";
-
-type Question = {
-  question: string;
-  answer: string;
-  category?: string;
-};
-
-type SpeechRecognitionType = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: any) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: any) => void) | null;
-};
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognitionType;
-    webkitSpeechRecognition: new () => SpeechRecognitionType;
-  }
-}
-
-const generalPoints = [
+const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
   "You need to solve each test by less than a minute.",
   "The goal is to solve within 30 seconds.",
@@ -916,35 +909,25 @@ const generalPoints = [
   "Good: Solving it by less than 120 seconds.",
 ];
 
-const specificPoints = [
+const SPECIFIC_LINES = [
   "Getting full score of 60 out of 60 is our target.",
   "If you are getting a score of 59/58 is ok.",
   "If you are getting 57 and less than that, you can repeat the test.",
 ];
 
-function CenteredMessage({
-  children,
-  color = "text.secondary",
-}: {
-  children: React.ReactNode;
-  color?: string;
-}) {
-  return (
-    <Box
-      component="main"
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55); }
+  70% { box-shadow: 0 0 0 16px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+`;
+
+const pageSx = { minHeight: "100vh", bgcolor: "#fff", color: "text.primary" };
+
+type Question = {
+  question: string;
+  answer: string;
+  category?: string;
+};
 
 export default function LevelPage() {
   const params = useParams();
@@ -956,9 +939,6 @@ export default function LevelPage() {
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-
-  const [answer, setAnswer] = useState("");
-  const [listening, setListening] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
@@ -975,17 +955,35 @@ export default function LevelPage() {
 
   const [studentId, setStudentId] = useState("");
 
-  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
-  const savingRef = useRef(false);
-
-  const keepListeningRef = useRef(false);
-  const spokenAnswerRef = useRef("");
+  const pendingSavesRef = useRef<Promise<void>[]>([]);
+  const completedRef = useRef(false);
+  const questionSecondsRef = useRef(0);
+  const studentIdRef = useRef("");
 
   const answersRef = useRef<string[]>([]);
   const questionsRef = useRef<Question[]>([]);
   const currentQuestionRef = useRef(0);
 
   const totalSecondsRef = useRef(0);
+
+  /* ----------------------------- voice ----------------------------- */
+
+  const {
+    listening,
+    heardText,
+    micMessage,
+    micReady,
+    startListening,
+    stopListening,
+    clearHeard,
+  } = useVoiceAnswer({
+    onAnswer: (text) => moveToNextQuestion(text),
+    getCorrectAnswer: () =>
+      questionsRef.current[currentQuestionRef.current]?.answer ?? "",
+    canListen: () => !completedRef.current,
+  });
+
+  /* ------------------------- keep refs in sync --------------------- */
 
   useEffect(() => {
     questionsRef.current = questions;
@@ -996,11 +994,40 @@ export default function LevelPage() {
   }, [currentQuestion]);
 
   useEffect(() => {
+    completedRef.current = completed;
+  }, [completed]);
+
+  useEffect(() => {
+    questionSecondsRef.current = questionSeconds;
+  }, [questionSeconds]);
+
+  useEffect(() => {
+    studentIdRef.current = studentId;
+  }, [studentId]);
+
+  useEffect(() => {
     loadQuestions();
   }, []);
 
+  /* ---------------------------- student ---------------------------- */
+
+  // waits until Firebase has restored the logged-in user
+  function waitForUser() {
+    return new Promise<any>((resolve) => {
+      if (auth.currentUser) {
+        resolve(auth.currentUser);
+        return;
+      }
+
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+  }
+
   async function loadStudent() {
-    const user = auth.currentUser;
+    const user = await waitForUser();
 
     if (!user) {
       return "";
@@ -1025,9 +1052,12 @@ export default function LevelPage() {
     }
 
     setStudentId(id);
+    studentIdRef.current = id;
 
     return id;
   }
+
+  /* ---------------------------- questions -------------------------- */
 
   async function loadQuestions() {
     try {
@@ -1062,7 +1092,7 @@ export default function LevelPage() {
       for (const category of categories) {
         const categoryName = String(category);
 
-        const categoryCollectionRef = collection(
+        const categoryRef = collection(
           db,
           "QuestionBank",
           "Maths",
@@ -1071,10 +1101,7 @@ export default function LevelPage() {
           categoryName
         );
 
-        const questionsQuery = query(
-          categoryCollectionRef,
-          orderBy("order", "asc")
-        );
+        const questionsQuery = query(categoryRef, orderBy("order", "asc"));
 
         const snapshot = await getDocs(questionsQuery);
 
@@ -1091,6 +1118,11 @@ export default function LevelPage() {
 
       setQuestions(loadedQuestions);
 
+      // development only: warns if an answer stored in Firebase is wrong
+      if (process.env.NODE_ENV === "development") {
+        checkQuestionBank(loadedQuestions);
+      }
+
       questionsRef.current = loadedQuestions;
 
       answersRef.current = new Array(loadedQuestions.length).fill("");
@@ -1102,6 +1134,8 @@ export default function LevelPage() {
       setLoading(false);
     }
   }
+
+  /* ----------------------------- timers ---------------------------- */
 
   useEffect(() => {
     if (!started || completed) return;
@@ -1116,13 +1150,7 @@ export default function LevelPage() {
       setQuestionSeconds((seconds) => seconds + 1);
 
       if (oneMinuteMode) {
-        setQuizSeconds((seconds) => {
-          if (seconds > 0) {
-            return seconds - 1;
-          }
-
-          return 0;
-        });
+        setQuizSeconds((seconds) => (seconds > 0 ? seconds - 1 : 0));
       }
     }, 1000);
 
@@ -1142,13 +1170,15 @@ export default function LevelPage() {
 
     setStarted(true);
     setCompleted(false);
+    completedRef.current = false;
 
     setCurrentQuestion(0);
     currentQuestionRef.current = 0;
 
-    setAnswer("");
+    clearHeard();
 
     setQuestionSeconds(0);
+    questionSecondsRef.current = 0;
 
     setTotalSeconds(0);
     totalSecondsRef.current = 0;
@@ -1158,43 +1188,12 @@ export default function LevelPage() {
     }
 
     answersRef.current = new Array(questions.length).fill("");
+
+    // open the microphone right away, so it is ready when the first question appears
+    startListening();
   }
 
-  function normalizeAnswer(value: string) {
-    let text = value.toLowerCase().trim();
-
-    text = text.replace(/\s+/g, "");
-
-    if (text.startsWith(".")) {
-      text = "0" + text;
-    }
-
-    text = text.replace("²", "^2");
-    text = text.replace("³", "^3");
-
-    return text;
-  }
-
-  function areAnswersEquivalent(userAnswer: string, correctAnswer: string) {
-    const user = normalizeAnswer(userAnswer);
-    const correct = normalizeAnswer(correctAnswer);
-
-    if (user === correct) {
-      return true;
-    }
-
-    const userNumber = Number(user);
-    const correctNumber = Number(correct);
-
-    if (!Number.isNaN(userNumber) && !Number.isNaN(correctNumber)) {
-      const userFixed = Math.trunc(userNumber * 10000) / 10000;
-      const correctFixed = Math.trunc(correctNumber * 10000) / 10000;
-
-      return userFixed === correctFixed;
-    }
-
-    return false;
-  }
+  /* ------------------------- saving answers ------------------------ */
 
   function calculateQuestionBadge(secondsTaken: number, isCorrect: boolean) {
     if (!isCorrect) return "";
@@ -1214,7 +1213,9 @@ export default function LevelPage() {
     isSubmit: boolean,
     secondsTaken: number
   ) {
-    if (!studentId) {
+    const id = studentIdRef.current;
+
+    if (!id) {
       return;
     }
 
@@ -1230,10 +1231,16 @@ export default function LevelPage() {
 
     const questionId = `Q${questionIndex + 1}`;
 
+    console.log(
+      `Check ${questionId}: said "${userAnswer}" | correct "${current.answer}" | ${
+        correct ? "PASS" : "FAIL"
+      }`
+    );
+
     const answerRef = doc(
       db,
       "StudentAnswerSheet",
-      studentId,
+      id,
       "Maths",
       "QuestionCategory",
       level,
@@ -1259,143 +1266,50 @@ export default function LevelPage() {
     );
   }
 
-  async function moveToNextQuestion(userAnswer: string) {
-    if (savingRef.current || completed) return;
-
-    savingRef.current = true;
+  // moves to the next question straight away, saving happens in the background
+  function moveToNextQuestion(userAnswer: string) {
+    if (completedRef.current) return;
 
     const index = currentQuestionRef.current;
 
     answersRef.current[index] = userAnswer;
 
-    try {
-      await saveAnswer(index, userAnswer, false, questionSeconds);
-
-      if (index >= questionsRef.current.length - 1) {
-        await finishQuiz();
-        return;
-      }
-
-      const nextIndex = index + 1;
-
-      currentQuestionRef.current = nextIndex;
-
-      setCurrentQuestion(nextIndex);
-
-      setAnswer("");
-
-      setQuestionSeconds(0);
-    } catch (error) {
+    const saving = saveAnswer(
+      index,
+      userAnswer,
+      false,
+      questionSecondsRef.current
+    ).catch((error) => {
       console.error("Error saving answer:", error);
-    } finally {
-      savingRef.current = false;
-    }
-  }
+    });
 
-  async function startListening() {
-    if (listening || completed) return;
+    pendingSavesRef.current.push(saving);
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Voice recognition is not supported in this browser.");
+    if (index >= questionsRef.current.length - 1) {
+      void finishQuiz();
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const nextIndex = index + 1;
 
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    currentQuestionRef.current = nextIndex;
 
-    recognitionRef.current = recognition;
+    setCurrentQuestion(nextIndex);
 
-    keepListeningRef.current = true;
-    spokenAnswerRef.current = "";
-
-    setListening(true);
-    setAnswer("");
-
-    recognition.onresult = (event: any) => {
-      const result = event.results?.[0]?.[0];
-
-      if (!result) {
-        return;
-      }
-
-      const spokenText = result.transcript?.trim() || "";
-
-      if (spokenText === "") {
-        return;
-      }
-
-      spokenAnswerRef.current = spokenText;
-      keepListeningRef.current = false;
-
-      setAnswer(spokenText);
-
-      recognition.stop();
-
-      setTimeout(async () => {
-        await moveToNextQuestion(spokenText);
-
-        spokenAnswerRef.current = "";
-        setListening(false);
-      }, 700);
-    };
-
-    recognition.onerror = (event: any) => {
-      if (event.error === "no-speech" || event.error === "aborted") {
-        return;
-      }
-
-      console.error("Speech recognition error:", event.error);
-
-      if (event.error === "not-allowed") {
-        keepListeningRef.current = false;
-        setListening(false);
-        alert("Microphone permission is blocked.");
-        return;
-      }
-
-      if (event.error === "audio-capture") {
-        keepListeningRef.current = false;
-        setListening(false);
-        alert("Microphone is not available.");
-        return;
-      }
-    };
-
-    recognition.onend = () => {
-      if (keepListeningRef.current && !completed) {
-        setTimeout(() => {
-          try {
-            recognition.start();
-          } catch (error) {
-            console.log("Speech recognition restart:", error);
-          }
-        }, 300);
-
-        return;
-      }
-
-      if (!spokenAnswerRef.current) {
-        setListening(false);
-      }
-    };
-
-    recognition.start();
+    setQuestionSeconds(0);
+    questionSecondsRef.current = 0;
   }
 
+  /* ---------------------------- finish quiz ------------------------ */
+
   async function finishQuiz() {
-    if (completed) return;
+    if (completedRef.current) return;
+
+    completedRef.current = true;
 
     setCompleted(true);
 
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    stopListening();
 
     const currentQuestions = questionsRef.current;
 
@@ -1411,21 +1325,25 @@ export default function LevelPage() {
 
     setScore(finalScore);
 
-    if (!studentId) {
+    const id = studentIdRef.current;
+
+    if (!id) {
       return;
     }
 
     try {
-      const answersCollectionRef = collection(
+      const answersCollection = collection(
         db,
         "StudentAnswerSheet",
-        studentId,
+        id,
         "Maths",
         "QuestionCategory",
         level
       );
 
-      const answersSnapshot = await getDocs(answersCollectionRef);
+      await Promise.all(pendingSavesRef.current);
+
+      const answersSnapshot = await getDocs(answersCollection);
 
       let savedTotalSeconds = 0;
 
@@ -1457,7 +1375,7 @@ export default function LevelPage() {
       const scoreRef = doc(
         db,
         "StudentScoreSheet",
-        studentId,
+        id,
         "Maths",
         "QuestionCategory",
         level,
@@ -1467,7 +1385,7 @@ export default function LevelPage() {
       await setDoc(
         scoreRef,
         {
-          studentId: studentId,
+          studentId: id,
           subject: "Maths",
           category: "QuestionCategory",
           level: level,
@@ -1492,6 +1410,7 @@ export default function LevelPage() {
 
   function formatTime(seconds: number) {
     const minutes = Math.floor(seconds / 60);
+
     const remainingSeconds = seconds % 60;
 
     return `${String(minutes).padStart(2, "0")}:${String(
@@ -1499,119 +1418,112 @@ export default function LevelPage() {
     ).padStart(2, "0")}`;
   }
 
-  /* ---------------- UI ---------------- */
+  /* ------------------------------- UI ------------------------------ */
 
   if (loading) {
     return (
-      <CenteredMessage>
-        <CircularProgress size={24} color="inherit" />
+      <Box
+        sx={{
+          ...pageSx,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+        }}
+      >
+        <CircularProgress size={28} sx={{ color: "#000" }} />
         <Typography color="text.secondary">Loading...</Typography>
-      </CenteredMessage>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <CenteredMessage>
-        <Typography color="error">{error}</Typography>
-      </CenteredMessage>
+      <Box
+        sx={{
+          ...pageSx,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 2,
+        }}
+      >
+        <Alert severity="error">{error}</Alert>
+      </Box>
     );
   }
 
+  /* ------------------------- instructions screen ------------------------ */
+
   if (!started) {
     return (
-      <Box
-        component="main"
-        sx={{ minHeight: "100vh", bgcolor: "white", px: 2.5, py: 4 }}
-      >
+      <Box sx={{ ...pageSx, px: 2.5, py: 4 }}>
         <Container maxWidth="sm" disableGutters>
-          <Typography
-            variant="h4"
-            sx={{
-            fontWeight: 700,
-            textAlign: "center",
-            mb: 4 }}
-          >
+          <Typography variant="h4" sx={{ fontWeight: 700, textAlign: "center", mb: 4 }}>
             Instructions
           </Typography>
 
           <Paper
-            elevation={1}
-            sx={{ borderRadius: "24px", bgcolor: "grey.50", p: 3 }}
+            variant="outlined"
+            sx={{ p: 3, borderRadius: 6, bgcolor: "grey.50", borderColor: "grey.200" }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               Enable 1 Minute Mode
             </Typography>
 
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 1,
-                mb: 3.5,
-              }}
-            >
-              <Typography color="text.secondary">
-                Automatically save after 1 minute whether you answered all
-                questions or not.
-              </Typography>
+            <FormControlLabel
+              labelPlacement="start"
+              sx={{ m: 0, mb: 3, width: "100%", justifyContent: "space-between" }}
+              control={
+                <Switch
+                  checked={oneMinuteMode}
+                  onChange={(e) => setOneMinuteMode(e.target.checked)}
+                  sx={{
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#000" },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                      backgroundColor: "#000",
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography color="text.secondary" sx={{ pr: 2 }}>
+                  Automatically save after 1 minute whether you answered all
+                  questions or not.
+                </Typography>
+              }
+            />
 
-              <Checkbox
-                checked={oneMinuteMode}
-                onChange={(e) => setOneMinuteMode(e.target.checked)}
-                sx={{
-                  color: "black",
-                  "&.Mui-checked": { color: "black" },
-                }}
-              />
-            </Box>
-
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               General
             </Typography>
 
-            <Box sx={{ mb: 3 }}>
-              {generalPoints.map((point) => (
-                <Typography
-                  key={point}
-                  color="text.secondary"
-                  sx={{ mb: 1 }}
-                >
-                  {point}
+            <Stack spacing={1} sx={{ mb: 3 }}>
+              {GENERAL_LINES.map((line) => (
+                <Typography key={line} color="text.secondary">
+                  {line}
                 </Typography>
               ))}
-            </Box>
+            </Stack>
 
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               Specifics
             </Typography>
 
-            <Box sx={{ mb: 3 }}>
-              {specificPoints.map((point) => (
-                <Typography
-                  key={point}
-                  color="text.secondary"
-                  sx={{ mb: 1 }}
-                >
-                  {point}
+            <Stack spacing={1} sx={{ mb: 3 }}>
+              {SPECIFIC_LINES.map((line) => (
+                <Typography key={line} color="text.secondary">
+                  {line}
                 </Typography>
               ))}
-            </Box>
+            </Stack>
 
             <Button
               fullWidth
+              size="large"
               variant="contained"
               onClick={startQuiz}
-              sx={{
-                py: 2,
-                borderRadius: "16px",
-                bgcolor: "black",
-                fontWeight: 700,
-                textTransform: "none",
-                fontSize: "1rem",
-                "&:hover": { bgcolor: "grey.900" },
-              }}
+              sx={{ py: 1.75, borderRadius: 4, bgcolor: "#000", color: "#fff", "&:hover": { bgcolor: "#222" } }}
             >
               Start
             </Button>
@@ -1621,30 +1533,23 @@ export default function LevelPage() {
     );
   }
 
+  /* ----------------------------- result screen ----------------------------- */
+
   if (completed) {
     return (
       <Box
-        component="main"
         sx={{
-          minHeight: "100vh",
-          bgcolor: "white",
+          ...pageSx,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           px: 2.5,
+          py: 3,
         }}
       >
         <Paper
-          elevation={6}
-          sx={{
-            width: "100%",
-            maxWidth: 448,
-            borderRadius: "24px",
-            p: 4,
-            textAlign: "center",
-            border: "1px solid",
-            borderColor: "divider",
-          }}
+          elevation={8}
+          sx={{ width: "100%", maxWidth: 440, p: 4, borderRadius: 6, textAlign: "center" }}
         >
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 2.5 }}>
             Quiz Completed!
@@ -1654,23 +1559,52 @@ export default function LevelPage() {
             Your Score
           </Typography>
 
-          <Typography variant="h2" sx={{ fontWeight: 700, mb: 4 }}>
+          <Typography variant="h2" sx={{ fontWeight: 700, mb: 3 }}>
             {score} / {questions.length}
           </Typography>
 
+          <List
+            dense
+            disablePadding
+            sx={{ maxHeight: 256, overflowY: "auto", mb: 3, textAlign: "left" }}
+          >
+            {questions.map((q, i) => {
+              const said = answersRef.current[i] || "";
+              const ok = said !== "" && areAnswersEquivalent(said, q.answer);
+
+              return (
+                <ListItem key={i} divider>
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    {ok ? (
+                      <CheckCircleIcon color="success" fontSize="small" />
+                    ) : (
+                      <CancelIcon color="error" fontSize="small" />
+                    )}
+                  </ListItemIcon>
+
+                  <ListItemText
+                    primary={`${i + 1}. ${q.question}`}
+                    secondary={
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        color={ok ? "success.main" : "error.main"}
+                      >
+                        you: {said || "-"} | answer: {q.answer}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+
           <Button
             fullWidth
+            size="large"
             variant="contained"
             onClick={() => router.push("/maths")}
-            sx={{
-              py: 2,
-              borderRadius: "16px",
-              bgcolor: "black",
-              fontWeight: 700,
-              textTransform: "none",
-              fontSize: "1rem",
-              "&:hover": { bgcolor: "grey.900" },
-            }}
+            sx={{ py: 1.75, borderRadius: 4, bgcolor: "#000", color: "#fff", "&:hover": { bgcolor: "#222" } }}
           >
             Back to Home
           </Button>
@@ -1679,33 +1613,44 @@ export default function LevelPage() {
     );
   }
 
+  /* ------------------------------ quiz screen ------------------------------ */
+
   const current = questions[currentQuestion];
 
+  const micText = heardText
+    ? heardText
+    : listening
+    ? micReady
+      ? "Speak now..."
+      : "Starting microphone..."
+    : "Tap microphone to speak your answer...";
+
   return (
-    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "white" }}>
-      <Container maxWidth="md" sx={{ px: 2.5, py: 2.5 }}>
-        {/* Top bar */}
+    <Box sx={pageSx}>
+      <Container maxWidth="md" sx={{ py: 2.5 }}>
+        {/* top bar */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            mb: 5,
+            mb: 2,
           }}
         >
-          <IconButton onClick={() => router.back()} aria-label="Back">
-            <ArrowBackIcon fontSize="large" />
+          <IconButton aria-label="Back" onClick={() => router.back()}>
+            <ArrowBackIcon />
           </IconButton>
 
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", flex: 1, px: 1 }}>
             {titleFromUrl || current.category || "Addition"}
           </Typography>
 
-          <Box sx={{ textAlign: "right" }}>
+          <Box sx={{ textAlign: "right", minWidth: 84 }}>
             {oneMinuteMode && (
               <Typography
-                variant="body2"
-                sx={{ fontWeight: 700, color: "error.main" }}
+                variant="caption"
+                color="error"
+                sx={{ fontWeight: 700, display: "block" }}
               >
                 Quiz : {formatTime(quizSeconds)}
               </Typography>
@@ -1717,90 +1662,87 @@ export default function LevelPage() {
           </Box>
         </Box>
 
-        {/* Total timer */}
-        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-          <Box
+        {oneMinuteMode && (
+          <LinearProgress
+            variant="determinate"
+            value={(quizSeconds / 60) * 100}
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              border: "2px solid black",
-              borderRadius: "999px",
-              px: 3,
-              py: 1.5,
+              mb: 3,
+              height: 8,
+              borderRadius: 4,
+              bgcolor: "grey.200",
+              "& .MuiLinearProgress-bar": {
+                bgcolor: quizSeconds <= 10 ? "#dc2626" : "#000",
+              },
             }}
-          >
-            <TimerOutlinedIcon />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {formatTime(totalSeconds)}
-            </Typography>
-          </Box>
+          />
+        )}
+
+        {/* stopwatch */}
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+          <Chip
+            icon={<TimerOutlinedIcon />}
+            label={formatTime(totalSeconds)}
+            variant="outlined"
+            sx={{
+              height: 48,
+              px: 1,
+              fontSize: 18,
+              fontWeight: 700,
+              borderWidth: 2,
+              borderColor: "text.primary",
+            }}
+          />
         </Box>
 
-        {/* Question */}
+        {/* question */}
         <Paper
           elevation={6}
-          sx={{
-            borderRadius: "24px",
-            p: 5,
-            textAlign: "center",
-            border: "1px solid",
-            borderColor: "divider",
-            mb: 5,
-          }}
+          sx={{ p: { xs: 4, sm: 5 }, textAlign: "center", borderRadius: 6, mb: 5 }}
         >
-          <Typography variant="h3" sx={{ fontWeight: 700 }}>
+          <Typography variant="h3" sx={{ fontWeight: 700, fontSize: { xs: "2rem", sm: "3rem" } }}>
             {current.question}
           </Typography>
         </Paper>
 
-        {/* Voice answer */}
-        <Button
-          fullWidth
-          onClick={startListening}
-          disabled={listening}
-          sx={{
-            bgcolor: "white",
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: "24px",
-            p: 3,
-            boxShadow: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            textTransform: "none",
-            "&:hover": { bgcolor: "grey.50" },
-            "&.Mui-disabled": { bgcolor: "white", opacity: 0.9 },
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 600, color: "text.secondary", textAlign: "left" }}
-          >
-            {answer
-              ? answer
-              : listening
-              ? "Listening..."
-              : "Tap microphone to speak your answer..."}
-          </Typography>
-
-          <Box
+        {/* microphone */}
+        <Card elevation={6} sx={{ borderRadius: 6 }}>
+          <CardActionArea
+            onClick={startListening}
+            disabled={listening}
             sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "#ffedd5",
+              p: 3,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              ml: 2,
+              justifyContent: "space-between",
+              gap: 2,
             }}
           >
-            <MicIcon sx={{ fontSize: 32, color: "#f97316" }} />
-          </Box>
-        </Button>
+            <Typography
+              variant="h6"
+              color={heardText ? "text.primary" : "text.secondary"} sx={{ fontWeight: 600 }}>
+              {micText}
+            </Typography>
+
+            <Avatar
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: listening && micReady ? "#fdba74" : "#ffedd5",
+                color: "#c2410c",
+                animation: listening && micReady ? `${pulse} 1.4s infinite` : "none",
+              }}
+            >
+              <MicIcon fontSize="large" />
+            </Avatar>
+          </CardActionArea>
+        </Card>
+
+        {micMessage && (
+          <Alert severity="error" variant="outlined" sx={{ mt: 2 }}>
+            {micMessage}
+          </Alert>
+        )}
       </Container>
     </Box>
   );
