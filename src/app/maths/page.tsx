@@ -295,15 +295,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db, auth } from "../../lib/firebase";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  Paper,
-  Typography,
-} from "@mui/material";
+
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 type Level = {
   levelId: string;
@@ -316,7 +319,7 @@ type ScoreData = {
   status?: string;
 };
 
-const generalPoints = [
+const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
   "You need to solve each test by less than a minute.",
   "The goal is to solve within 30 seconds.",
@@ -325,29 +328,29 @@ const generalPoints = [
   "Good: Solving it by less than 120 seconds.",
 ];
 
-const specificPoints = [
+const SPECIFIC_LINES = [
   "Getting full score of 60 out of 60 is our target.",
   "If you are getting a score of 59/58 is ok.",
   "If you are getting 57 and less than that, you can repeat the test.",
 ];
 
-function InfoCard({ title, points }: { title: string; points: string[] }) {
+function InfoCard({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <Paper
-      elevation={0}
-      sx={{ mt: 2, borderRadius: "22px", p: 2.5, color: "grey.600" }}
-    >
-      <Typography variant="h6" sx={{ fontWeight: 900 }} color="grey.800">
+    <Paper sx={{ mt: 2, p: 2.5, borderRadius: "22px" }} elevation={0}>
+      <Typography variant="h6" color="text.primary" sx={{ fontWeight: 900 }}>
         {title}
       </Typography>
 
-      <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
-        {points.map((point) => (
-          <Typography key={point} variant="body2" sx={{ fontWeight: 600 }}>
-            • {point}
+      <Stack spacing={1} sx={{ mt: 1.5 }}>
+        {lines.map((line) => (
+          <Typography
+            key={line}
+            variant="body2"
+            color="text.secondary" sx={{ fontWeight: 600 }}>
+            • {line}
           </Typography>
         ))}
-      </Box>
+      </Stack>
     </Paper>
   );
 }
@@ -365,18 +368,15 @@ export default function MathsPage() {
 
   const getLevels = async () => {
     try {
-      const levelRef = collection(
-        db,
-        "QuestionBank",
-        "Maths",
-        "QuestionCategory",
-      );
+      const levelRef = collection(db, "QuestionBank", "Maths", "QuestionCategory");
 
       const snapshot = await getDocs(levelRef);
+
       const levelList: Level[] = [];
 
       snapshot.forEach((item) => {
         const data = item.data();
+
         const categories = data.categories || [];
 
         levelList.push({
@@ -388,10 +388,12 @@ export default function MathsPage() {
       levelList.sort((a, b) => {
         const numberA = parseInt(a.levelId.replace(/\D/g, "")) || 0;
         const numberB = parseInt(b.levelId.replace(/\D/g, "")) || 0;
+
         return numberA - numberB;
       });
 
       setLevels(levelList);
+
       await getScores(levelList);
     } catch (error) {
       console.log("Error getting levels:", error);
@@ -402,7 +404,10 @@ export default function MathsPage() {
 
   const getScores = async (levelList: Level[]) => {
     const user = auth.currentUser;
-    if (!user) return;
+
+    if (!user) {
+      return;
+    }
 
     const scoreList: Record<string, ScoreData> = {};
 
@@ -415,7 +420,7 @@ export default function MathsPage() {
           "Maths",
           "QuestionCategory",
           level.levelId,
-          "scoreData",
+          "scoreData"
         );
 
         const scoreSnapshot = await getDoc(scoreRef);
@@ -438,7 +443,6 @@ export default function MathsPage() {
   if (loading) {
     return (
       <Box
-        component="main"
         sx={{
           minHeight: "100vh",
           bgcolor: "grey.100",
@@ -448,8 +452,8 @@ export default function MathsPage() {
           gap: 2,
         }}
       >
-        <CircularProgress size={24} color="inherit" />
-        <Typography sx={{ fontWeight: 700, color: "grey.600" }}>
+        <CircularProgress size={28} sx={{ color: "#000" }} />
+        <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
           Loading...
         </Typography>
       </Box>
@@ -457,16 +461,17 @@ export default function MathsPage() {
   }
 
   return (
-    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100", color: "text.primary" }}>
       {/* Header */}
       <Box
         sx={{
-          bgcolor: "black",
-          color: "white",
+          bgcolor: "#000",
+          color: "#fff",
           px: 2.5,
           pt: 4,
           pb: 3,
-          borderRadius: "0 0 28px 28px",
+          borderBottomLeftRadius: 28,
+          borderBottomRightRadius: 28,
         }}
       >
         <Box
@@ -478,14 +483,15 @@ export default function MathsPage() {
           }}
         >
           <IconButton
+            aria-label="Menu"
             sx={{
               position: "absolute",
               left: 0,
-              bgcolor: "white",
-              color: "black",
+              bgcolor: "#fff",
+              color: "#000",
               width: 48,
               height: 48,
-              borderRadius: "12px",
+              borderRadius: 3,
               "&:hover": { bgcolor: "grey.200" },
             }}
           >
@@ -498,12 +504,12 @@ export default function MathsPage() {
         </Box>
 
         <Box sx={{ mt: 2 }}>
-          <InfoCard title="General" points={generalPoints} />
-          <InfoCard title="Specifics" points={specificPoints} />
+          <InfoCard title="General" lines={GENERAL_LINES} />
+          <InfoCard title="Specifics" lines={SPECIFIC_LINES} />
         </Box>
       </Box>
 
-      {/* Test Cards */}
+      {/* Test cards */}
       <Box sx={{ px: 2.5, py: 3 }}>
         <Box
           sx={{
@@ -514,60 +520,61 @@ export default function MathsPage() {
         >
           {levels.map((level) => {
             const scoreData = scores[level.levelId];
+
             const completed = scoreData?.status === "Completed";
-            const isMultiplication =
-              level.categoryName.startsWith("Multiplication");
+
+            const isMultiplication = level.categoryName.startsWith("Multiplication");
 
             const secondLine = isMultiplication
               ? level.categoryName.replace("Multiplication", "").trim()
               : "";
 
             return (
-              <Button
+              <Card
                 key={level.levelId}
-                onClick={() => openTest(level.levelId, level.categoryName)}
-                sx={{
-                  bgcolor: "white",
-                  minHeight: 220,
-                  borderRadius: "22px",
-                  border: "2px solid black",
-                  boxShadow: 2,
-                  p: 2,
-                  color: "grey.900",
-                  textTransform: "none",
-                  "&:hover": { bgcolor: "grey.50" },
-                }}
+                elevation={3}
+                sx={{ borderRadius: "22px", border: "2px solid #000" }}
               >
-                <Box sx={{ textAlign: "center" }}>
-                  {isMultiplication ? (
-                    <>
-                      <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                        Multiplication
-                      </Typography>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ fontWeight: 900, mt: 0.5 }}
-                      >
-                        {secondLine}
-                      </Typography>
-                    </>
-                  ) : (
-                    <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                      {level.categoryName}
-                    </Typography>
-                  )}
+                <CardActionArea
+                  onClick={() => openTest(level.levelId, level.categoryName)}
+                  sx={{
+                    minHeight: 220,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ textAlign: "center" }}>
+                    {isMultiplication ? (
+                      <>
+                        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                          Multiplication
+                        </Typography>
 
-                  {completed && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 1.5 }}
-                    >
-                      {scoreData?.score} / {scoreData?.totalNoQuestions}
-                    </Typography>
-                  )}
-                </Box>
-              </Button>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 900, mt: 0.5 }}>
+                          {secondLine}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                        {level.categoryName}
+                      </Typography>
+                    )}
+
+                    {completed && (
+                      <Chip
+                        icon={<CheckCircleIcon />}
+                        label={`${scoreData?.score} / ${scoreData?.totalNoQuestions}`}
+                        color="success"
+                        variant="outlined"
+                        size="small"
+                        sx={{ mt: 2, fontWeight: 700 }}
+                      />
+                    )}
+                  </Box>
+                </CardActionArea>
+              </Card>
             );
           })}
         </Box>

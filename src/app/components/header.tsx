@@ -215,14 +215,14 @@ export default function Header() {
               />
 
               {/* Login button (opens the practice login screen) */}
-              {/* <Button
+              <Button
                 component={Link}
                 href="/practice"
                 variant="outlined"
                 sx={{ ...loginButtonSx, mr: 1 }}
               >
                 Practice Now
-              </Button> */}
+              </Button>
 
               <Button
                 component={Link}
