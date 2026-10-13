@@ -89,15 +89,16 @@ import { loginWithGoogle } from "@/lib/firebase";
 export default function PracticeLoginPage() {
   const router = useRouter();
 
-  const handleGoogleLogin = async () => {
-    try {
-      await loginWithGoogle();
-      alert("Login successful");
-      router.push("/maths");
-    } catch (error) {
-      alert("Login failed");
-    }
-  };
+ const handleGoogleLogin = async () => {
+  try {
+    await loginWithGoogle();
+    alert("Login successful");
+    router.push("/maths");
+  } catch (error: any) {
+    console.error("Login error:", error.code, error.message);
+    alert(`Login failed: ${error.code}`);
+  }
+};
 
   return (
     <Box
