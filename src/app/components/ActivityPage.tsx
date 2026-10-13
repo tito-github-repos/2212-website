@@ -37,6 +37,12 @@ type ActivityRow = {
   date: Date | null;
 };
 
+type ActivityPageProps = {
+  // When given, the back arrow calls this (e.g. to close a dialog)
+  // instead of going back in browser history.
+  onBack?: () => void;
+};
+
 function formatDate(date: Date | null) {
   if (!date) return { day: "-", time: "" };
 
@@ -131,12 +137,20 @@ async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
   return list;
 }
 
-export default function ActivityPage() {
+export default function ActivityPage({ onBack }: ActivityPageProps) {
   const router = useRouter();
 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(true);
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.back();
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -221,7 +235,7 @@ export default function ActivityPage() {
           }}
         >
           <IconButton
-            onClick={() => router.back()}
+            onClick={handleBack}
             aria-label="Back"
             sx={{ position: "absolute", left: 0 }}
           >
@@ -284,7 +298,9 @@ export default function ActivityPage() {
                     align="center"
                     sx={{ py: 5, color: "text.secondary", border: 0 }}
                   >
-                    {loggedIn ? "No activity yet" : "Please login to see your activity"}
+                    {loggedIn
+                      ? "No activity yet"
+                      : "Please login to see your activity"}
                   </TableCell>
                 </TableRow>
               ) : (

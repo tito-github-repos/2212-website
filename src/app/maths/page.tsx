@@ -305,7 +305,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import PendingIcon from "@mui/icons-material/Pending";
-
+import PracticeDrawer from "../practice/PracticeDrawer";
 import {
   fetchScoreData,
   getAvailableLevelsWithCategories,
@@ -356,6 +356,7 @@ export default function MathsPage() {
   const [levels, setLevels] = useState<LevelInfo[]>([]);
   const [scores, setScores] = useState<Record<string, ScoreData>>({});
   const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     getLevels();
@@ -453,7 +454,8 @@ export default function MathsPage() {
           }}
         >
           <IconButton
-            aria-label="Menu"
+            aria-label="Open Menu"
+            onClick={() => setDrawerOpen(true)}
             sx={{
               position: "absolute",
               left: 0,
@@ -566,6 +568,9 @@ export default function MathsPage() {
           })}
         </Box>
       </Box>
+
+      // Drawer for menu
+      <PracticeDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Box>
   );
 }

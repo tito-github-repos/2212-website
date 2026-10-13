@@ -125,11 +125,17 @@ export default function PracticeLoginPage() {
           </Avatar>
         </Box> */}
 
-        <Typography variant="h4" sx={{ fontWeight: 700, color: "success.main" }}>
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: 700, color: "success.main" }}
+        >
           Welcome!
         </Typography>
 
-        <Typography variant="h6" sx={{ mt: 1.5, fontWeight: 400, color: "grey.500" }}>
+        <Typography
+          variant="h6"
+          sx={{ mt: 1.5, fontWeight: 400, color: "grey.500" }}
+        >
           Let's start learning together
         </Typography>
 
@@ -171,7 +177,7 @@ export default function PracticeLoginPage() {
         </Button>
 
         {/* Guest */}
-        <Button
+        {/* <Button
           onClick={() => router.push("/maths")}
           sx={{
             mt: 3,
@@ -182,7 +188,7 @@ export default function PracticeLoginPage() {
           }}
         >
           Continue as Guest
-        </Button>
+        </Button> */}
 
         <Typography
           variant="caption"
