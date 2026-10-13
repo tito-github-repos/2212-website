@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 // Routes where the site header and footer should not appear
-const HIDDEN_ROUTES = ["/maths", "/activity", "/profile"];
+const HIDDEN_ROUTES = ["/maths", "/activity", "/profile", "/complete-profile"];
 
 export function useIsChromeHidden() {
   const pathname = usePathname();
