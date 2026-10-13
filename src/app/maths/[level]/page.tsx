@@ -852,26 +852,8 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  setDoc,
-  serverTimestamp,
-  where,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-
-import { auth, db } from "../../../lib/firebase";
-import { areAnswersEquivalent } from "../../../lib/answerMatch";
-import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
-import { checkQuestionBank } from "../../../lib/questionCheck";
 
 import { keyframes } from "@emotion/react";
 import Alert from "@mui/material/Alert";
@@ -886,19 +868,22 @@ import Container from "@mui/material/Container";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CancelIcon from "@mui/icons-material/Cancel";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import MicIcon from "@mui/icons-material/Mic";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
+
+import { formatTime, getBadgeIcon, getResultInfo } from "../../../lib/quizRules";
+import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
+import {
+  useQuestionController,
+  type SubmitResult,
+} from "../../../lib/useQuestionController";
+
+const SUBJECT = "Maths";
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -923,514 +908,171 @@ const pulse = keyframes`
 
 const pageSx = { minHeight: "100vh", bgcolor: "#fff", color: "text.primary" };
 
-type Question = {
-  question: string;
-  answer: string;
-  category?: string;
+const blackButtonSx = {
+  py: 1.75,
+  borderRadius: 4,
+  bgcolor: "#000",
+  color: "#fff",
+  "&:hover": { bgcolor: "#222" },
 };
 
+const outlinedButtonSx = {
+  py: 1.5,
+  borderRadius: 4,
+  color: "#000",
+  borderColor: "#000",
+  "&:hover": { borderColor: "#000", bgcolor: "grey.100" },
+};
+
+/* The outer page gives every level its own copy of the quiz.
+   Without the key, "Move to Next Level" would keep the old level's state. */
 export default function LevelPage() {
   const params = useParams();
+  const level = params.level as string;
+
+  return (
+    <Suspense fallback={null}>
+      <LevelQuiz key={level} level={level} />
+    </Suspense>
+  );
+}
+
+function LevelQuiz({ level }: { level: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const level = params.level as string;
   const titleFromUrl = searchParams.get("title");
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-
-  const [loading, setLoading] = useState(true);
-  const [started, setStarted] = useState(false);
-  const [completed, setCompleted] = useState(false);
-
-  const [oneMinuteMode, setOneMinuteMode] = useState(true);
-  const [quizSeconds, setQuizSeconds] = useState(60);
-
-  const [questionSeconds, setQuestionSeconds] = useState(0);
-  const [totalSeconds, setTotalSeconds] = useState(0);
-
-  const [score, setScore] = useState(0);
-  const [error, setError] = useState("");
-
-  const [studentId, setStudentId] = useState("");
-
-  const pendingSavesRef = useRef<Promise<void>[]>([]);
-  const completedRef = useRef(false);
-  const questionSecondsRef = useRef(0);
-  const studentIdRef = useRef("");
-
-  const answersRef = useRef<string[]>([]);
-  const questionsRef = useRef<Question[]>([]);
-  const currentQuestionRef = useRef(0);
-
-  const totalSecondsRef = useRef(0);
-
-  /* ----------------------------- voice ----------------------------- */
+  const controller = useQuestionController(SUBJECT, level);
 
   const {
-    listening,
-    heardText,
-    micMessage,
-    micReady,
-    startListening,
-    stopListening,
-    clearHeard,
-  } = useVoiceAnswer({
-    onAnswer: (text) => moveToNextQuestion(text),
-    getCorrectAnswer: () =>
-      questionsRef.current[currentQuestionRef.current]?.answer ?? "",
-    canListen: () => !completedRef.current,
-  });
+    questions,
+    currentQuestionIndex,
+    isLoading,
+    error,
+    totalScore,
+    totalElapsedSeconds,
+    previous,
+    savedCount,
+    student,
+  } = controller;
 
-  /* ------------------------- keep refs in sync --------------------- */
+  const [started, setStarted] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [result, setResult] = useState<SubmitResult | null>(null);
 
-  useEffect(() => {
-    questionsRef.current = questions;
-  }, [questions]);
+  // true after "Retry Test" is pressed on the score page
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    currentQuestionRef.current = currentQuestion;
-  }, [currentQuestion]);
+  const [oneMinuteMode, setOneMinuteMode] = useState(false);
+  const [quizSeconds, setQuizSeconds] = useState(60);
 
-  useEffect(() => {
-    completedRef.current = completed;
-  }, [completed]);
+  const finishedRef = useRef(false);
 
-  useEffect(() => {
-    questionSecondsRef.current = questionSeconds;
-  }, [questionSeconds]);
+  const title = titleFromUrl || questions[0]?.category || "Addition";
 
-  useEffect(() => {
-    studentIdRef.current = studentId;
-  }, [studentId]);
+  /* ------------------------------- voice ---------------------------------- */
 
-  useEffect(() => {
-    loadQuestions();
-  }, []);
-
-  /* ---------------------------- student ---------------------------- */
-
-  // waits until Firebase has restored the logged-in user
-  function waitForUser() {
-    return new Promise<any>((resolve) => {
-      if (auth.currentUser) {
-        resolve(auth.currentUser);
-        return;
-      }
-
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        unsubscribe();
-        resolve(user);
-      });
+  const { listening, heardText, micMessage, micReady, startListening, stopListening, clearHeard } =
+    useVoiceAnswer({
+      onAnswer: (text) => handleAnswer(text),
+      getCorrectAnswer: () => controller.getCorrectAnswer(),
+      canListen: () => !finishedRef.current,
     });
-  }
 
-  async function loadStudent() {
-    const user = await waitForUser();
+  function handleAnswer(text: string) {
+    if (finishedRef.current) return;
 
-    if (!user) {
-      return "";
+    if (controller.isLastQuestion()) {
+      void finishQuiz(text);
+      return;
     }
 
-    let id = user.uid;
+    controller.nextQuestion(text);
+  }
+
+  /* -------------------------------- quiz ---------------------------------- */
+
+  // retrying = true: the old attempt goes to history and every answer is cleared
+  // retrying = false: continue from the first unanswered question
+  async function startQuiz() {
+    if (starting || questions.length === 0) return;
+
+    setStarting(true);
 
     try {
-      const studentQuery = query(
-        collection(db, "StudentRegister"),
-        where("email", "==", user.email),
-        orderBy("email")
-      );
+      await controller.startAttempt(retrying);
 
-      const snapshot = await getDocs(studentQuery);
+      finishedRef.current = false;
+      setResult(null);
+      setCompleted(false);
+      setQuizSeconds(60);
+      clearHeard();
+      setStarted(true);
 
-      if (snapshot.docs.length > 0) {
-        id = snapshot.docs[0].id;
-      }
-    } catch (error) {
-      console.error("Error getting student:", error);
-    }
-
-    setStudentId(id);
-    studentIdRef.current = id;
-
-    return id;
-  }
-
-  /* ---------------------------- questions -------------------------- */
-
-  async function loadQuestions() {
-    try {
-      setLoading(true);
-
-      await loadStudent();
-
-      const levelRef = doc(
-        db,
-        "QuestionBank",
-        "Maths",
-        "QuestionCategory",
-        level
-      );
-
-      const levelSnap = await getDoc(levelRef);
-
-      if (!levelSnap.exists()) {
-        setError("Questions not found");
-        setLoading(false);
-        return;
-      }
-
-      const levelData = levelSnap.data();
-
-      const categories = Array.isArray(levelData.categories)
-        ? levelData.categories
-        : [];
-
-      const loadedQuestions: Question[] = [];
-
-      for (const category of categories) {
-        const categoryName = String(category);
-
-        const categoryRef = collection(
-          db,
-          "QuestionBank",
-          "Maths",
-          "QuestionCategory",
-          level,
-          categoryName
-        );
-
-        const questionsQuery = query(categoryRef, orderBy("order", "asc"));
-
-        const snapshot = await getDocs(questionsQuery);
-
-        snapshot.forEach((questionDoc) => {
-          const data = questionDoc.data();
-
-          loadedQuestions.push({
-            question: String(data.question ?? ""),
-            answer: String(data.answer ?? ""),
-            category: categoryName,
-          });
-        });
-      }
-
-      setQuestions(loadedQuestions);
-
-      // development only: warns if an answer stored in Firebase is wrong
-      if (process.env.NODE_ENV === "development") {
-        checkQuestionBank(loadedQuestions);
-      }
-
-      questionsRef.current = loadedQuestions;
-
-      answersRef.current = new Array(loadedQuestions.length).fill("");
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading questions:", error);
-      setError("Unable to load questions");
-      setLoading(false);
+      // open the microphone right away, so it is ready for the first question
+      startListening();
+    } catch (e) {
+      console.error("Could not start the test:", e);
+    } finally {
+      setStarting(false);
     }
   }
 
-  /* ----------------------------- timers ---------------------------- */
+  async function finishQuiz(lastAnswer: string) {
+    if (finishedRef.current) return;
+
+    finishedRef.current = true;
+    setCompleted(true);
+    stopListening();
+
+    const submitResult = await controller.submitQuiz(lastAnswer);
+    setResult(submitResult);
+  }
+
+  // leave half way: answers stay saved and the level shows as in progress
+  async function handleBack() {
+    if (!started || completed) {
+      router.push("/maths");
+      return;
+    }
+
+    if (leaving) return;
+
+    setLeaving(true);
+    finishedRef.current = true;
+    stopListening();
+
+    await controller.saveAndClose("");
+
+    router.push("/maths");
+  }
+
+  /* ------------------------------ 1 minute mode ---------------------------- */
 
   useEffect(() => {
-    if (!started || completed) return;
+    if (!started || completed || !oneMinuteMode) return;
 
     const timer = setInterval(() => {
-      setTotalSeconds((seconds) => {
-        const newSeconds = seconds + 1;
-        totalSecondsRef.current = newSeconds;
-        return newSeconds;
-      });
-
-      setQuestionSeconds((seconds) => seconds + 1);
-
-      if (oneMinuteMode) {
-        setQuizSeconds((seconds) => (seconds > 0 ? seconds - 1 : 0));
-      }
+      setQuizSeconds((seconds) => (seconds > 0 ? seconds - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
   }, [started, completed, oneMinuteMode]);
 
   useEffect(() => {
-    if (!started || completed) return;
-
-    if (oneMinuteMode && quizSeconds === 0) {
-      finishQuiz();
+    if (started && !completed && oneMinuteMode && quizSeconds === 0) {
+      void finishQuiz("");
     }
   }, [quizSeconds, started, completed, oneMinuteMode]);
 
-  function startQuiz() {
-    if (questions.length === 0) return;
+  /* --------------------------------- UI ------------------------------------ */
 
-    setStarted(true);
-    setCompleted(false);
-    completedRef.current = false;
-
-    setCurrentQuestion(0);
-    currentQuestionRef.current = 0;
-
-    clearHeard();
-
-    setQuestionSeconds(0);
-    questionSecondsRef.current = 0;
-
-    setTotalSeconds(0);
-    totalSecondsRef.current = 0;
-
-    if (oneMinuteMode) {
-      setQuizSeconds(60);
-    }
-
-    answersRef.current = new Array(questions.length).fill("");
-
-    // open the microphone right away, so it is ready when the first question appears
-    startListening();
-  }
-
-  /* ------------------------- saving answers ------------------------ */
-
-  function calculateQuestionBadge(secondsTaken: number, isCorrect: boolean) {
-    if (!isCorrect) return "";
-
-    if (secondsTaken < 30) return "Excellent";
-
-    if (secondsTaken < 60) return "Very Good";
-
-    if (secondsTaken < 120) return "Good";
-
-    return "";
-  }
-
-  async function saveAnswer(
-    questionIndex: number,
-    userAnswer: string,
-    isSubmit: boolean,
-    secondsTaken: number
-  ) {
-    const id = studentIdRef.current;
-
-    if (!id) {
-      return;
-    }
-
-    const currentQuestions = questionsRef.current;
-
-    if (questionIndex < 0 || questionIndex >= currentQuestions.length) {
-      return;
-    }
-
-    const current = currentQuestions[questionIndex];
-
-    const correct = areAnswersEquivalent(userAnswer, current.answer);
-
-    const questionId = `Q${questionIndex + 1}`;
-
-    console.log(
-      `Check ${questionId}: said "${userAnswer}" | correct "${current.answer}" | ${
-        correct ? "PASS" : "FAIL"
-      }`
-    );
-
-    const answerRef = doc(
-      db,
-      "StudentAnswerSheet",
-      id,
-      "Maths",
-      "QuestionCategory",
-      level,
-      questionId
-    );
-
-    const badge = calculateQuestionBadge(secondsTaken, correct);
-
-    await setDoc(
-      answerRef,
-      {
-        question: current.question,
-        answer: userAnswer,
-        correctAnswer: current.answer,
-        score: correct ? 1 : 0,
-        scoreText: correct ? "Pass" : "Fail",
-        badge: badge,
-        latestSecondsTaken: secondsTaken,
-        attemptDateTime: serverTimestamp(),
-        isSubmit: isSubmit,
-      },
-      { merge: true }
-    );
-  }
-
-  // moves to the next question straight away, saving happens in the background
-  function moveToNextQuestion(userAnswer: string) {
-    if (completedRef.current) return;
-
-    const index = currentQuestionRef.current;
-
-    answersRef.current[index] = userAnswer;
-
-    const saving = saveAnswer(
-      index,
-      userAnswer,
-      false,
-      questionSecondsRef.current
-    ).catch((error) => {
-      console.error("Error saving answer:", error);
-    });
-
-    pendingSavesRef.current.push(saving);
-
-    if (index >= questionsRef.current.length - 1) {
-      void finishQuiz();
-      return;
-    }
-
-    const nextIndex = index + 1;
-
-    currentQuestionRef.current = nextIndex;
-
-    setCurrentQuestion(nextIndex);
-
-    setQuestionSeconds(0);
-    questionSecondsRef.current = 0;
-  }
-
-  /* ---------------------------- finish quiz ------------------------ */
-
-  async function finishQuiz() {
-    if (completedRef.current) return;
-
-    completedRef.current = true;
-
-    setCompleted(true);
-
-    stopListening();
-
-    const currentQuestions = questionsRef.current;
-
-    let finalScore = 0;
-
-    for (let i = 0; i < currentQuestions.length; i++) {
-      const userAnswer = answersRef.current[i] || "";
-
-      if (areAnswersEquivalent(userAnswer, currentQuestions[i].answer)) {
-        finalScore++;
-      }
-    }
-
-    setScore(finalScore);
-
-    const id = studentIdRef.current;
-
-    if (!id) {
-      return;
-    }
-
-    try {
-      const answersCollection = collection(
-        db,
-        "StudentAnswerSheet",
-        id,
-        "Maths",
-        "QuestionCategory",
-        level
-      );
-
-      await Promise.all(pendingSavesRef.current);
-
-      const answersSnapshot = await getDocs(answersCollection);
-
-      let savedTotalSeconds = 0;
-
-      answersSnapshot.forEach((answerDoc) => {
-        const data = answerDoc.data();
-
-        savedTotalSeconds += Number(data.latestSecondsTaken ?? 0);
-      });
-
-      const averageSeconds =
-        currentQuestions.length > 0
-          ? Math.floor(savedTotalSeconds / currentQuestions.length)
-          : 0;
-
-      const wrongAnswers = currentQuestions.length - finalScore;
-
-      let badge = "Good";
-
-      if (wrongAnswers === 0) {
-        if (averageSeconds <= 30) {
-          badge = "Excellent";
-        } else if (averageSeconds <= 60) {
-          badge = "Very Good";
-        }
-      } else if (wrongAnswers <= 2) {
-        badge = "Very Good";
-      }
-
-      const scoreRef = doc(
-        db,
-        "StudentScoreSheet",
-        id,
-        "Maths",
-        "QuestionCategory",
-        level,
-        "scoreData"
-      );
-
-      await setDoc(
-        scoreRef,
-        {
-          studentId: id,
-          subject: "Maths",
-          category: "QuestionCategory",
-          level: level,
-          score: finalScore,
-          categoryName:
-            titleFromUrl || currentQuestions[0]?.category || level,
-          totalNoQuestions: currentQuestions.length,
-          status: "Completed",
-          latestBadge: badge,
-          latestTotalSeconds: savedTotalSeconds,
-          latestAverageSeconds: averageSeconds,
-          latestAttemptStartTime: serverTimestamp(),
-          latestAttemptEndTime: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    } catch (error) {
-      console.error("Error saving score:", error);
-    }
-  }
-
-  function formatTime(seconds: number) {
-    const minutes = Math.floor(seconds / 60);
-
-    const remainingSeconds = seconds % 60;
-
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remainingSeconds
-    ).padStart(2, "0")}`;
-  }
-
-  /* ------------------------------- UI ------------------------------ */
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <Box
-        sx={{
-          ...pageSx,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 2,
-        }}
-      >
+      <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
         <CircularProgress size={28} sx={{ color: "#000" }} />
         <Typography color="text.secondary">Loading...</Typography>
       </Box>
@@ -1439,34 +1081,132 @@ export default function LevelPage() {
 
   if (error) {
     return (
-      <Box
-        sx={{
-          ...pageSx,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
-        }}
-      >
+      <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
         <Alert severity="error">{error}</Alert>
       </Box>
     );
   }
 
-  /* ------------------------- instructions screen ------------------------ */
+  /* ------------------------ score page (already taken) --------------------- */
+
+  const alreadyCompleted = previous?.status === "Completed";
+
+  if (!started && alreadyCompleted && !retrying) {
+    const score = Number(previous?.score ?? 0);
+    const total = Number(previous?.totalNoQuestions ?? questions.length);
+
+    const info = getResultInfo(score, total);
+
+    // a badge only exists for a good score (older saved results may have one by mistake)
+    const badge = info.status === "repeat" ? "" : String(previous?.latestBadge ?? "");
+    const seconds = typeof previous?.latestTotalSeconds === "number" ? previous.latestTotalSeconds : null;
+
+    return (
+      <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", px: 2.5, py: 4 }}>
+        <Paper elevation={8} sx={{ width: "100%", maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 6, textAlign: "center" }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+            {title} Score
+          </Typography>
+
+          <Avatar sx={{ width: 96, height: 96, bgcolor: "grey.100", fontSize: 48, mx: "auto", mb: 2 }}>
+            {info.icon}
+          </Avatar>
+
+          <Typography color="text.secondary" sx={{ mb: 1 }}>
+            Your Score
+          </Typography>
+
+          <Typography variant="h2" sx={{ fontWeight: 700 }}>
+            {score} / {total}
+          </Typography>
+
+          <Typography variant="h5" sx={{ fontWeight: 700, color: info.color, mt: 1, mb: 2 }}>
+            {info.title}
+          </Typography>
+
+          <Stack direction="row" spacing={1} sx={{ justifyContent: "center", mb: 2 }}>
+            {badge && (
+              <Chip
+                label={`${getBadgeIcon(badge)} ${badge}`}
+                color="success"
+                variant="outlined"
+                sx={{ fontWeight: 700 }}
+              />
+            )}
+
+            {seconds !== null && (
+              <Chip
+                icon={<TimerOutlinedIcon />}
+                label={formatTime(seconds)}
+                variant="outlined"
+                sx={{ fontWeight: 700 }}
+              />
+            )}
+          </Stack>
+
+          <Alert severity={info.severity} sx={{ mb: 3, textAlign: "left" }}>
+            {info.message}
+          </Alert>
+
+          <Stack spacing={1.5}>
+            <Button fullWidth size="large" variant="contained" onClick={() => setRetrying(true)} sx={blackButtonSx}>
+              Retry Test
+            </Button>
+
+            <Button fullWidth size="large" variant="outlined" onClick={() => router.push("/maths")} sx={outlinedButtonSx}>
+              Back to Levels
+            </Button>
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+
+  /* ----------------------------- instructions ------------------------------ */
 
   if (!started) {
+    const canResume = !alreadyCompleted && savedCount > 0;
+
     return (
       <Box sx={{ ...pageSx, px: 2.5, py: 4 }}>
         <Container maxWidth="sm" disableGutters>
-          <Typography variant="h4" sx={{ fontWeight: 700, textAlign: "center", mb: 4 }}>
-            Instructions
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+            <IconButton
+              aria-label="Back"
+              onClick={() => (retrying ? setRetrying(false) : router.push("/maths"))}
+            >
+              <ArrowBackIcon />
+            </IconButton>
 
-          <Paper
-            variant="outlined"
-            sx={{ p: 3, borderRadius: 6, bgcolor: "grey.50", borderColor: "grey.200" }}
-          >
+            <Typography variant="h4" sx={{ fontWeight: 700, textAlign: "center", flex: 1, pr: 5 }}>
+              Instructions
+            </Typography>
+          </Box>
+
+          <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, bgcolor: "grey.50", borderColor: "grey.200" }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              {title}
+            </Typography>
+
+            {student.isGuest && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                You are not logged in, so your answers will not be saved.
+              </Alert>
+            )}
+
+            {retrying && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Starting again keeps your previous attempt in your history.
+              </Alert>
+            )}
+
+            {canResume && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                You already answered {savedCount} of {questions.length} questions. Start will
+                continue from question {currentQuestionIndex + 1}.
+              </Alert>
+            )}
+
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               Enable 1 Minute Mode
             </Typography>
@@ -1488,8 +1228,7 @@ export default function LevelPage() {
               }
               label={
                 <Typography color="text.secondary" sx={{ pr: 2 }}>
-                  Automatically save after 1 minute whether you answered all
-                  questions or not.
+                  Automatically save after 1 minute whether you answered all questions or not.
                 </Typography>
               }
             />
@@ -1522,10 +1261,11 @@ export default function LevelPage() {
               fullWidth
               size="large"
               variant="contained"
+              disabled={starting}
               onClick={startQuiz}
-              sx={{ py: 1.75, borderRadius: 4, bgcolor: "#000", color: "#fff", "&:hover": { bgcolor: "#222" } }}
+              sx={blackButtonSx}
             >
-              Start
+              {starting ? "Starting..." : "Start"}
             </Button>
           </Paper>
         </Container>
@@ -1533,89 +1273,126 @@ export default function LevelPage() {
     );
   }
 
-  /* ----------------------------- result screen ----------------------------- */
+  /* -------------------------------- result --------------------------------- */
 
   if (completed) {
+    const info = getResultInfo(totalScore, questions.length);
+    const badge = result?.badge ?? "";
+
     return (
-      <Box
-        sx={{
-          ...pageSx,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2.5,
-          py: 3,
-        }}
-      >
-        <Paper
-          elevation={8}
-          sx={{ width: "100%", maxWidth: 440, p: 4, borderRadius: 6, textAlign: "center" }}
-        >
+      <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", px: 2.5, py: 3 }}>
+        <Paper elevation={8} sx={{ width: "100%", maxWidth: 440, p: 4, borderRadius: 6, textAlign: "center" }}>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 2.5 }}>
-            Quiz Completed!
+            {student.isGuest ? "Quiz Completed!" : "Level Completed!"}
           </Typography>
 
-          <Typography color="text.secondary" sx={{ mb: 1 }}>
-            Your Score
-          </Typography>
+          {student.isGuest ? (
+            <Alert severity="info" sx={{ mb: 3, textAlign: "left" }}>
+              Login to save your progress and view activity.
+            </Alert>
+          ) : (
+            <>
+              <Avatar sx={{ width: 96, height: 96, bgcolor: "grey.100", fontSize: 48, mx: "auto", mb: 2 }}>
+                {info.icon}
+              </Avatar>
 
-          <Typography variant="h2" sx={{ fontWeight: 700, mb: 3 }}>
-            {score} / {questions.length}
-          </Typography>
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
+                Your Score
+              </Typography>
 
-          <List
-            dense
-            disablePadding
-            sx={{ maxHeight: 256, overflowY: "auto", mb: 3, textAlign: "left" }}
-          >
-            {questions.map((q, i) => {
-              const said = answersRef.current[i] || "";
-              const ok = said !== "" && areAnswersEquivalent(said, q.answer);
+              <Typography variant="h2" sx={{ fontWeight: 700 }}>
+                {totalScore} / {questions.length}
+              </Typography>
 
-              return (
-                <ListItem key={i} divider>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    {ok ? (
-                      <CheckCircleIcon color="success" fontSize="small" />
-                    ) : (
-                      <CancelIcon color="error" fontSize="small" />
-                    )}
-                  </ListItemIcon>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: info.color, mt: 1, mb: 2 }}>
+                {info.title}
+              </Typography>
 
-                  <ListItemText
-                    primary={`${i + 1}. ${q.question}`}
-                    secondary={
-                      <Typography
-                        component="span"
-                        variant="body2"
-                        color={ok ? "success.main" : "error.main"}
-                      >
-                        you: {said || "-"} | answer: {q.answer}
-                      </Typography>
-                    }
+              {!result && (
+                <Box sx={{ mb: 2 }}>
+                  <LinearProgress sx={{ height: 6, borderRadius: 3 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Saving your score...
+                  </Typography>
+                </Box>
+              )}
+
+              {result && (
+                <Stack direction="row" spacing={1} sx={{ mb: 2, justifyContent: "center" }}>
+                  {badge && (
+                    <Chip
+                      label={`${getBadgeIcon(badge)} ${badge}`}
+                      color="success"
+                      variant="outlined"
+                      sx={{ fontWeight: 700 }}
+                    />
+                  )}
+
+                  <Chip
+                    icon={<TimerOutlinedIcon />}
+                    label={formatTime(result.totalSeconds)}
+                    variant="outlined"
+                    sx={{ fontWeight: 700 }}
                   />
-                </ListItem>
-              );
-            })}
-          </List>
+                </Stack>
+              )}
 
-          <Button
-            fullWidth
-            size="large"
-            variant="contained"
-            onClick={() => router.push("/maths")}
-            sx={{ py: 1.75, borderRadius: 4, bgcolor: "#000", color: "#fff", "&:hover": { bgcolor: "#222" } }}
-          >
-            Back to Home
-          </Button>
+              {result?.error && (
+                <Alert severity="warning" sx={{ mb: 2, textAlign: "left" }}>
+                  {result.error}
+                </Alert>
+              )}
+
+              {result && (
+                <Alert severity={info.severity} sx={{ mb: 3, textAlign: "left" }}>
+                  {info.message}
+                </Alert>
+              )}
+            </>
+          )}
+
+          <Stack spacing={1.5}>
+            {student.isGuest && (
+              <Button fullWidth size="large" variant="contained" onClick={() => router.push("/")} sx={blackButtonSx}>
+                Login
+              </Button>
+            )}
+
+            {!student.isGuest && result?.nextLevel && (
+              <Button
+                fullWidth
+                size="large"
+                variant="contained"
+                onClick={() =>
+                  router.push(
+                    `/maths/${result.nextLevel!.levelId}?title=${encodeURIComponent(result.nextLevel!.categoryName)}`
+                  )
+                }
+                sx={blackButtonSx}
+              >
+                Move to Next Level
+              </Button>
+            )}
+
+            <Button
+              fullWidth
+              size="large"
+              variant={student.isGuest || result?.nextLevel ? "outlined" : "contained"}
+              disabled={!student.isGuest && !result}
+              onClick={() => router.push("/maths")}
+              sx={student.isGuest || result?.nextLevel ? outlinedButtonSx : blackButtonSx}
+            >
+              Back to Home
+            </Button>
+          </Stack>
         </Paper>
       </Box>
     );
   }
 
-  /* ------------------------------ quiz screen ------------------------------ */
+  /* ---------------------------------- quiz --------------------------------- */
 
-  const current = questions[currentQuestion];
+  const current = questions[currentQuestionIndex];
 
   const micText = heardText
     ? heardText
@@ -1628,36 +1405,24 @@ export default function LevelPage() {
   return (
     <Box sx={pageSx}>
       <Container maxWidth="md" sx={{ py: 2.5 }}>
-        {/* top bar */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            mb: 2,
-          }}
-        >
-          <IconButton aria-label="Back" onClick={() => router.back()}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          <IconButton aria-label="Back" onClick={handleBack} disabled={leaving}>
             <ArrowBackIcon />
           </IconButton>
 
           <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", flex: 1, px: 1 }}>
-            {titleFromUrl || current.category || "Addition"}
+            {title}
           </Typography>
 
           <Box sx={{ textAlign: "right", minWidth: 84 }}>
             {oneMinuteMode && (
-              <Typography
-                variant="caption"
-                color="error"
-                sx={{ fontWeight: 700, display: "block" }}
-              >
+              <Typography variant="caption" color="error" sx={{ fontWeight: 700, display: "block" }}>
                 Quiz : {formatTime(quizSeconds)}
               </Typography>
             )}
 
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {currentQuestion + 1}/{questions.length}
+              {currentQuestionIndex + 1}/{questions.length}
             </Typography>
           </Box>
         </Box>
@@ -1671,56 +1436,33 @@ export default function LevelPage() {
               height: 8,
               borderRadius: 4,
               bgcolor: "grey.200",
-              "& .MuiLinearProgress-bar": {
-                bgcolor: quizSeconds <= 10 ? "#dc2626" : "#000",
-              },
+              "& .MuiLinearProgress-bar": { bgcolor: quizSeconds <= 10 ? "#dc2626" : "#000" },
             }}
           />
         )}
 
-        {/* stopwatch */}
         <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
           <Chip
             icon={<TimerOutlinedIcon />}
-            label={formatTime(totalSeconds)}
+            label={formatTime(totalElapsedSeconds)}
             variant="outlined"
-            sx={{
-              height: 48,
-              px: 1,
-              fontSize: 18,
-              fontWeight: 700,
-              borderWidth: 2,
-              borderColor: "text.primary",
-            }}
+            sx={{ height: 48, px: 1, fontSize: 18, fontWeight: 700, borderWidth: 2, borderColor: "text.primary" }}
           />
         </Box>
 
-        {/* question */}
-        <Paper
-          elevation={6}
-          sx={{ p: { xs: 4, sm: 5 }, textAlign: "center", borderRadius: 6, mb: 5 }}
-        >
+        <Paper elevation={6} sx={{ p: { xs: 4, sm: 5 }, textAlign: "center", borderRadius: 6, mb: 5 }}>
           <Typography variant="h3" sx={{ fontWeight: 700, fontSize: { xs: "2rem", sm: "3rem" } }}>
-            {current.question}
+            {current?.question}
           </Typography>
         </Paper>
 
-        {/* microphone */}
         <Card elevation={6} sx={{ borderRadius: 6 }}>
           <CardActionArea
             onClick={startListening}
             disabled={listening}
-            sx={{
-              p: 3,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 2,
-            }}
+            sx={{ p: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}
           >
-            <Typography
-              variant="h6"
-              color={heardText ? "text.primary" : "text.secondary"} sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }} color={heardText ? "text.primary" : "text.secondary"}>
               {micText}
             </Typography>
 
