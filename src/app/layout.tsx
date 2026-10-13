@@ -3,6 +3,8 @@ import "./globals.css";
 import Header from "./components/header";
 import Footer from "./components/footer";
 import DisableCopy from "./components/DisableCopy";
+import HideOnRoutes from "./components/HideOnRoutes";
+import MainContent from "./components/MainContent";
 
 export const metadata: Metadata = {
   title: "2212 – Sharpen Your Mind, Achieve Your Best",
@@ -19,9 +21,13 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <DisableCopy />
-        <Header />
-        <main style={{ paddingTop: "60px" }}>{children}</main>
-        <Footer />
+        <HideOnRoutes>
+          <Header />
+        </HideOnRoutes>
+        <MainContent>{children}</MainContent>
+        <HideOnRoutes>
+          <Footer />
+        </HideOnRoutes>
       </body>
     </html>
   );
