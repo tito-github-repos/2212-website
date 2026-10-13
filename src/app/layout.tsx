@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <DisableCopy />
+        {/* <DisableCopy /> */}
         <HideOnRoutes>
           <Header />
         </HideOnRoutes>
