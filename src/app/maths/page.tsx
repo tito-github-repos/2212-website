@@ -293,8 +293,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db, auth } from "../../lib/firebase";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
@@ -306,18 +304,18 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PendingIcon from "@mui/icons-material/Pending";
 
-type Level = {
-  levelId: string;
-  categoryName: string;
-};
+import {
+  fetchScoreData,
+  getAvailableLevelsWithCategories,
+  getStudent,
+  type LevelInfo,
+  type ScoreData,
+} from "../../lib/questionService";
+import { getBadgeIcon, getResultInfo } from "../../lib/quizRules";
 
-type ScoreData = {
-  score?: number;
-  totalNoQuestions?: number;
-  status?: string;
-};
+const SUBJECT = "Maths";
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -337,16 +335,13 @@ const SPECIFIC_LINES = [
 function InfoCard({ title, lines }: { title: string; lines: string[] }) {
   return (
     <Paper sx={{ mt: 2, p: 2.5, borderRadius: "22px" }} elevation={0}>
-      <Typography variant="h6" color="text.primary" sx={{ fontWeight: 900 }}>
+      <Typography variant="h6" sx={{ fontWeight: 900 }} color="text.primary">
         {title}
       </Typography>
 
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         {lines.map((line) => (
-          <Typography
-            key={line}
-            variant="body2"
-            color="text.secondary" sx={{ fontWeight: 600 }}>
+          <Typography key={line} variant="body2" sx={{ fontWeight: 600 }} color="text.secondary">
             • {line}
           </Typography>
         ))}
@@ -358,7 +353,7 @@ function InfoCard({ title, lines }: { title: string; lines: string[] }) {
 export default function MathsPage() {
   const router = useRouter();
 
-  const [levels, setLevels] = useState<Level[]>([]);
+  const [levels, setLevels] = useState<LevelInfo[]>([]);
   const [scores, setScores] = useState<Record<string, ScoreData>>({});
   const [loading, setLoading] = useState(true);
 
@@ -368,29 +363,7 @@ export default function MathsPage() {
 
   const getLevels = async () => {
     try {
-      const levelRef = collection(db, "QuestionBank", "Maths", "QuestionCategory");
-
-      const snapshot = await getDocs(levelRef);
-
-      const levelList: Level[] = [];
-
-      snapshot.forEach((item) => {
-        const data = item.data();
-
-        const categories = data.categories || [];
-
-        levelList.push({
-          levelId: item.id,
-          categoryName: categories.length > 0 ? categories[0] : item.id,
-        });
-      });
-
-      levelList.sort((a, b) => {
-        const numberA = parseInt(a.levelId.replace(/\D/g, "")) || 0;
-        const numberB = parseInt(b.levelId.replace(/\D/g, "")) || 0;
-
-        return numberA - numberB;
-      });
+      const levelList = await getAvailableLevelsWithCategories(SUBJECT);
 
       setLevels(levelList);
 
@@ -402,34 +375,31 @@ export default function MathsPage() {
     }
   };
 
-  const getScores = async (levelList: Level[]) => {
-    const user = auth.currentUser;
+  // uses the same student id as the mobile app, so scores from both apps show up here
+  const getScores = async (levelList: LevelInfo[]) => {
+    const student = await getStudent();
 
-    if (!user) {
+    if (student.isGuest || !student.id) {
       return;
     }
 
+    const results = await Promise.all(
+      levelList.map(async (level) => {
+        try {
+          const data = await fetchScoreData(student.id, SUBJECT, level.levelId);
+          return { levelId: level.levelId, data };
+        } catch (error) {
+          console.log("Error getting score:", error);
+          return { levelId: level.levelId, data: null };
+        }
+      })
+    );
+
     const scoreList: Record<string, ScoreData> = {};
 
-    for (const level of levelList) {
-      try {
-        const scoreRef = doc(
-          db,
-          "StudentScoreSheet",
-          user.uid,
-          "Maths",
-          "QuestionCategory",
-          level.levelId,
-          "scoreData"
-        );
-
-        const scoreSnapshot = await getDoc(scoreRef);
-
-        if (scoreSnapshot.exists()) {
-          scoreList[level.levelId] = scoreSnapshot.data() as ScoreData;
-        }
-      } catch (error) {
-        console.log("Error getting score:", error);
+    for (const item of results) {
+      if (item.data) {
+        scoreList[item.levelId] = item.data;
       }
     }
 
@@ -523,6 +493,13 @@ export default function MathsPage() {
 
             const completed = scoreData?.status === "Completed";
 
+            // score chip: result icon (or badge icon) + score, red when the test must be repeated
+            const score = Number(scoreData?.score ?? 0);
+            const total = Number(scoreData?.totalNoQuestions ?? 0);
+            const info = getResultInfo(score, total);
+            const badge = info.status === "repeat" ? "" : String(scoreData?.latestBadge ?? "");
+            const chipIcon = badge ? getBadgeIcon(badge) : info.icon;
+
             const isMultiplication = level.categoryName.startsWith("Multiplication");
 
             const secondLine = isMultiplication
@@ -562,11 +539,21 @@ export default function MathsPage() {
                       </Typography>
                     )}
 
+                    {scoreData?.status === "InProgress" && (
+                      <Chip
+                        icon={<PendingIcon />}
+                        label="In progress"
+                        color="warning"
+                        variant="outlined"
+                        size="small"
+                        sx={{ mt: 2, fontWeight: 700 }}
+                      />
+                    )}
+
                     {completed && (
                       <Chip
-                        icon={<CheckCircleIcon />}
-                        label={`${scoreData?.score} / ${scoreData?.totalNoQuestions}`}
-                        color="success"
+                        label={`${chipIcon} ${score} / ${total}`}
+                        color={info.status === "repeat" ? "error" : "success"}
                         variant="outlined"
                         size="small"
                         sx={{ mt: 2, fontWeight: 700 }}

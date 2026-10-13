@@ -23,6 +23,11 @@ const BIG_SCALES: Record<string, number> = {
   billion: 1_000_000_000,
 };
 
+const SUPERSCRIPTS: Record<string, string> = {
+  "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5",
+  "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁰": "0",
+};
+
 const NUMERIC = /^-?\d+(\.\d+)?$/;
 const FRACTION = /^-?\d+(\.\d+)?\/-?\d+(\.\d+)?$/;
 
@@ -118,7 +123,8 @@ export function normalizeAnswer(value: string): string {
     text = "0" + text;
   }
 
-  text = text.replace("²", "^2").replace("³", "^3");
+  // superscripts become caret notation: x² -> x^2 (same as the mobile app)
+  text = text.replace(/[¹²³⁴⁵⁶⁷⁸⁹⁰]/g, (ch) => "^" + SUPERSCRIPTS[ch]);
 
   return text;
 }
