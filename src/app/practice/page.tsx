@@ -1,111 +1,110 @@
-// "use client";
-
-// import Image from "next/image";
-// import { useRouter } from "next/navigation";
-// import { loginWithGoogle } from "@/lib/firebase";
-
-// export default function Home() {
-//   const router = useRouter();
-
-//   const handleGoogleLogin = async () => {
-//     try {
-//       await loginWithGoogle();
-//       alert("Login successful");
-//       router.push("/maths");
-//     } catch (error) {
-//       alert("Login failed");
-//     }
-//   };
-
-//   return (
-//     <main className="min-h-screen bg-white flex items-center justify-center px-6">
-//       <div className="w-full max-w-md text-center">
-
-//         <div className="flex justify-center mb-8">
-//           <div className="w-28 h-28 rounded-full overflow-hidden">
-//             <Image
-//               src="/images/app_logo.jpeg"
-//               alt="TikoKids"
-//               width={112}
-//               height={112}
-//               className="w-full h-full object-cover"
-//             />
-//           </div>
-//         </div>
-
-//         <h1 className="text-4xl font-bold text-green-600">
-//           Welcome!
-//         </h1>
-
-//         <p className="mt-3 text-lg text-gray-500">
-//           Let's start learning together
-//         </p>
-
-//         <p className="mt-12 text-base font-semibold text-gray-500">
-//           Sign in to continue
-//         </p>
-
-//         <button
-//           onClick={handleGoogleLogin}
-//           className="w-full h-14 mt-8 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center gap-3"
-//         >
-//           <Image
-//             src="/images/download.svg"
-//             alt="Google"
-//             width={24}
-//             height={24}
-//           />
-
-//           <span className="text-green-600 font-bold">
-//             Continue with Google
-//           </span>
-//         </button>
-
-//         <button
-//           onClick={() => router.push("/maths")}
-//           className="mt-6 text-green-600 font-semibold"
-//         >
-//           Continue as Guest
-//         </button>
-
-//         <p className="mt-12 text-xs text-gray-400">
-//           By continuing, you agree to our Terms of Service
-//           <br />
-//           and Privacy Policy
-//         </p>
-
-//       </div>
-//     </main>
-//   );
-// // }
-
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Avatar, Box, Button, Container, Typography } from "@mui/material";
-import { loginWithGoogle } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  Typography,
+} from "@mui/material";
+import { auth, loginWithGoogle } from "@/lib/firebase";
+import { loadStudentProfile } from "@/lib/studentProfile";
+
+// Turns a Firebase error code into a message the user can act on.
+// Returns "" when nothing should be shown (the user just closed the popup).
+function getLoginErrorMessage(code?: string) {
+  switch (code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "";
+
+    case "auth/popup-blocked":
+      return "The sign-in popup was blocked. Please allow popups for this site and try again.";
+
+    case "auth/unauthorized-domain":
+      return "This website address is not authorised in Firebase (auth/unauthorized-domain).";
+
+    case "auth/network-request-failed":
+      return "Network problem. Check your internet, turn off any VPN or ad blocker and try again (auth/network-request-failed).";
+
+    case "auth/internal-error":
+      return "Sign-in could not start. A security setting or ad blocker may be blocking Google (auth/internal-error).";
+
+    case "auth/operation-not-allowed":
+      return "Google sign-in is not enabled for this app (auth/operation-not-allowed).";
+
+    default:
+      return `Login failed (${code ?? "unknown error"}). Please try again.`;
+  }
+}
 
 export default function PracticeLoginPage() {
   const router = useRouter();
 
- const handleGoogleLogin = async () => {
-  try {
-    await loginWithGoogle();
-    alert("Login successful");
-    router.push("/maths");
-  } catch (error: any) {
-    console.error("Login error:", error.code, error.message);
-    alert(`Login failed: ${error.code}`);
-  }
-};
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [deactivated, setDeactivated] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    setDeactivated(false);
+
+    let destination = "";
+
+    try {
+      const credential = await loginWithGoogle();
+
+      try {
+        const profile = await loadStudentProfile(credential.user);
+
+        if (profile.deactivated) {
+          // Deleted account: do not let it in
+          await signOut(auth);
+          setDeactivated(true);
+        } else {
+          // First-time users have no profile yet, so they register first
+          destination = profile.exists ? "/maths" : "/complete-profile";
+        }
+      } catch (profileError) {
+        console.error("Error checking profile:", profileError);
+        setErrorMessage(
+          "Signed in, but we could not check your profile. Please try again.",
+        );
+
+        // Start clean so the next try runs the check again
+        try {
+          await signOut(auth);
+        } catch (signOutError) {
+          console.error("Sign out failed:", signOutError);
+        }
+      }
+    } catch (error) {
+      console.error("Google login error:", error);
+
+      const code = (error as { code?: string }).code;
+      setErrorMessage(getLoginErrorMessage(code));
+    }
+
+    if (destination) {
+      router.push(destination);
+    } else {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box
       component="main"
       sx={{
         minHeight: "100vh",
-        bgcolor: "white",
+        bgcolor: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -113,9 +112,15 @@ export default function PracticeLoginPage() {
       }}
     >
       <Container maxWidth="xs" sx={{ textAlign: "center" }}>
-        {/* Logo */}
         {/* <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-          <Avatar sx={{ width: 112, height: 112 }}>
+          <Box
+            sx={{
+              width: 112,
+              height: 112,
+              borderRadius: "50%",
+              overflow: "hidden",
+            }}
+          >
             <Image
               src="/img/practice/app_logo.jpeg"
               alt="TikoKids"
@@ -123,80 +128,92 @@ export default function PracticeLoginPage() {
               height={112}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
-          </Avatar>
+          </Box>
         </Box> */}
 
         <Typography
           variant="h4"
-          sx={{ fontWeight: 700, color: "success.main" }}
+          component="h1"
+          sx={{ fontWeight: 700, color: "#16a34a" }}
         >
           Welcome!
         </Typography>
 
-        <Typography
-          variant="h6"
-          sx={{ mt: 1.5, fontWeight: 400, color: "grey.500" }}
-        >
-          Let's start learning together
+        <Typography sx={{ mt: 1.5, fontSize: 18, color: "#6b7280" }}>
+          Let&apos;s start learning together
         </Typography>
 
         <Typography
-          variant="body1"
-          sx={{ mt: 6, fontWeight: 600, color: "grey.500" }}
+          sx={{ mt: 6, fontSize: 16, fontWeight: 600, color: "#6b7280" }}
         >
           Sign in to continue
         </Typography>
 
-        {/* Google button */}
         <Button
-          fullWidth
           onClick={handleGoogleLogin}
-          startIcon={
+          disabled={loading}
+          fullWidth
+          sx={{
+            height: 56,
+            mt: 4,
+            borderRadius: 4,
+            bgcolor: "#fff",
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1.5,
+            textTransform: "none",
+            "&:hover": { bgcolor: "#f9fafb" },
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={22} sx={{ color: "#16a34a" }} />
+          ) : (
             <Image
               src="/img/practice/download.svg"
               alt="Google"
               width={24}
               height={24}
             />
-          }
-          sx={{
-            height: 56,
-            mt: 4,
-            borderRadius: "16px",
-            bgcolor: "white",
-            border: "1px solid",
-            borderColor: "grey.200",
-            boxShadow: 1,
-            color: "success.main",
-            fontWeight: 700,
-            textTransform: "none",
-            fontSize: "1rem",
-            "&:hover": { bgcolor: "grey.50" },
-          }}
-        >
-          Continue with Google
+          )}
+          <Typography sx={{ color: "#16a34a", fontWeight: 700 }}>
+            {loading ? "Signing in..." : "Continue with Google"}
+          </Typography>
         </Button>
 
-        {/* Guest */}
+        {deactivated && (
+          <Alert
+            severity="error"
+            variant="filled"
+            sx={{ mt: 2, textAlign: "left", borderRadius: "16px" }}
+          >
+            <AlertTitle sx={{ fontWeight: 800 }}>Account Deactivated</AlertTitle>
+            This account has been deactivated. Please contact with support team
+          </Alert>
+        )}
+
+        {errorMessage && (
+          <Alert severity="error" sx={{ mt: 2, textAlign: "left" }}>
+            {errorMessage}
+          </Alert>
+        )}
+
         {/* <Button
           onClick={() => router.push("/maths")}
+          disabled={loading}
           sx={{
             mt: 3,
-            color: "success.main",
+            color: "#16a34a",
             fontWeight: 600,
             textTransform: "none",
-            fontSize: "1rem",
           }}
         >
           Continue as Guest
         </Button> */}
 
-        <Typography
-          variant="caption"
-          component="p"
-          sx={{ mt: 6 }}
-          color="grey.400"
-        >
+        <Typography sx={{ mt: 6, fontSize: 12, color: "#9ca3af" }}>
           By continuing, you agree to our Terms of Service
           <br />
           and Privacy Policy
