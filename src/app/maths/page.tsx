@@ -1,296 +1,5 @@
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation";
-// import { db, auth } from "@/lib/firebase";
-// import {
-//   collection,
-//   doc,
-//   getDoc,
-//   getDocs,
-// } from "firebase/firestore";
-
-// type Level = {
-//   levelId: string;
-//   categoryName: string;
-// };
-
-// type ScoreData = {
-//   score?: number;
-//   totalNoQuestions?: number;
-//   status?: string;
-// };
-
-// export default function MathsPage() {
-//   const router = useRouter();
-
-//   const [levels, setLevels] = useState<Level[]>([]);
-//   const [scores, setScores] = useState<Record<string, ScoreData>>({});
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     getLevels();
-//   }, []);
-
-//   const getLevels = async () => {
-//     try {
-//       const levelRef = collection(
-//         db,
-//         "QuestionBank",
-//         "Maths",
-//         "QuestionCategory"
-//       );
-
-//       const snapshot = await getDocs(levelRef);
-
-//       const levelList: Level[] = [];
-
-//       snapshot.forEach((item) => {
-//         const data = item.data();
-
-//         const categories = data.categories || [];
-
-//         levelList.push({
-//           levelId: item.id,
-//           categoryName:
-//             categories.length > 0 ? categories[0] : item.id,
-//         });
-//       });
-
-//       levelList.sort((a, b) => {
-//         const numberA =
-//           parseInt(a.levelId.replace(/\D/g, "")) || 0;
-
-//         const numberB =
-//           parseInt(b.levelId.replace(/\D/g, "")) || 0;
-
-//         return numberA - numberB;
-//       });
-
-//       setLevels(levelList);
-
-//       await getScores(levelList);
-//     } catch (error) {
-//       console.log("Error getting levels:", error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const getScores = async (levelList: Level[]) => {
-//     const user = auth.currentUser;
-
-//     if (!user) {
-//       return;
-//     }
-
-//     const scoreList: Record<string, ScoreData> = {};
-
-//     for (const level of levelList) {
-//       try {
-//         const scoreRef = doc(
-//           db,
-//           "StudentScoreSheet",
-//           user.uid,
-//           "Maths",
-//           "QuestionCategory",
-//           level.levelId,
-//           "scoreData"
-//         );
-
-//         const scoreSnapshot = await getDoc(scoreRef);
-
-//         if (scoreSnapshot.exists()) {
-//           scoreList[level.levelId] =
-//             scoreSnapshot.data() as ScoreData;
-//         }
-//       } catch (error) {
-//         console.log("Error getting score:", error);
-//       }
-//     }
-
-//     setScores(scoreList);
-//   };
-
-//   const openTest = (levelId: string, categoryName: string) => {
-//     router.push(
-//       `/maths/${levelId}?title=${encodeURIComponent(categoryName)}`
-//     );
-//   };
-
-//   if (loading) {
-//     return (
-//       <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-//         <p className="font-bold text-gray-600">
-//           Loading...
-//         </p>
-//       </main>
-//     );
-//   }
-
-//   return (
-//     <main className="min-h-screen bg-gray-100">
-
-//       {/* Header */}
-
-//       <div className="bg-black text-white px-5 pt-8 pb-6 rounded-b-[28px]">
-
-//         <div className="flex items-center justify-center relative">
-
-//           <button className="absolute left-0 bg-white text-black w-12 h-12 rounded-xl text-2xl">
-//             ☰
-//           </button>
-
-//           <h1 className="text-3xl font-black">
-//             2212
-//           </h1>
-
-//         </div>
-
-//         {/* General */}
-
-//         <div className="mt-8 bg-white rounded-[22px] p-5 text-gray-500">
-
-//           <h2 className="text-xl font-black text-gray-800">
-//             General
-//           </h2>
-
-//           <div className="mt-3 space-y-2 text-sm font-semibold">
-
-//             <p>
-//               • There are ten tests here. Each test has 60 numerical.
-//             </p>
-
-//             <p>
-//               • You need to solve each test by less than a minute.
-//             </p>
-
-//             <p>
-//               • The goal is to solve within 30 seconds.
-//             </p>
-
-//             <p>
-//               • Excellent: Solving it by less than 30 seconds.
-//             </p>
-
-//             <p>
-//               • Very Good: Solving it by less than 60 seconds.
-//             </p>
-
-//             <p>
-//               • Good: Solving it by less than 120 seconds.
-//             </p>
-
-//           </div>
-
-//         </div>
-
-//         {/* Specifics */}
-
-//         <div className="mt-4 bg-white rounded-[22px] p-5 text-gray-500">
-
-//           <h2 className="text-xl font-black text-gray-800">
-//             Specifics
-//           </h2>
-
-//           <div className="mt-3 space-y-2 text-sm font-semibold">
-
-//             <p>
-//               • Getting full score of 60 out of 60 is our target.
-//             </p>
-
-//             <p>
-//               • If you are getting a score of 59/58 is ok.
-//             </p>
-
-//             <p>
-//               • If you are getting 57 and less than that, you can repeat the test.
-//             </p>
-
-//           </div>
-
-//         </div>
-
-//       </div>
-
-//       {/* Test Cards */}
-
-//       <div className="px-5 py-6">
-
-//         <div className="grid grid-cols-2 gap-3">
-
-//           {levels.map((level) => {
-
-//             const scoreData = scores[level.levelId];
-
-//             const completed =
-//               scoreData?.status === "Completed";
-
-//             let title = level.categoryName;
-
-//             let secondLine = "";
-
-//             if (level.categoryName.startsWith("Multiplication")) {
-//               title = "Multiplication";
-//               secondLine =
-//                 level.categoryName
-//                   .replace("Multiplication", "")
-//                   .trim();
-//             }
-
-//             return (
-//               <button
-//                 key={level.levelId}
-//                 onClick={() =>
-//                   openTest(
-//                     level.levelId,
-//                     level.categoryName
-//                   )
-//                 }
-//                 className="bg-white min-h-[220px] rounded-[22px] border-2 border-black shadow-md flex items-center justify-center p-4"
-//               >
-
-//                 <div className="text-center">
-
-//                   {level.categoryName.startsWith("Multiplication") ? (
-//                     <>
-//                       <h2 className="text-xl font-black text-gray-900">
-//                         {title}
-//                       </h2>
-
-//                       <p className="text-lg font-black text-gray-900 mt-1">
-//                         {secondLine}
-//                       </p>
-//                     </>
-//                   ) : (
-//                     <h2 className="text-xl font-black text-gray-900">
-//                       {level.categoryName}
-//                     </h2>
-//                   )}
-
-//                   {completed && (
-//                     <p className="text-sm text-gray-500 mt-3">
-//                       {scoreData?.score} /{" "}
-//                       {scoreData?.totalNoQuestions}
-//                     </p>
-//                   )}
-
-//                 </div>
-
-//               </button>
-//             );
-//           })}
-
-//         </div>
-
-//       </div>
-
-//     </main>
-//   );
-// }
-
+//src\app\maths\page.tsx
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -304,7 +13,6 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
-import PendingIcon from "@mui/icons-material/Pending";
 import PracticeDrawer from "../practice/PracticeDrawer";
 import {
   fetchScoreData,
@@ -341,7 +49,12 @@ function InfoCard({ title, lines }: { title: string; lines: string[] }) {
 
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         {lines.map((line) => (
-          <Typography key={line} variant="body2" sx={{ fontWeight: 600 }} color="text.secondary">
+          <Typography
+            key={line}
+            variant="body2"
+            sx={{ fontWeight: 600 }}
+            color="text.secondary"
+          >
             • {line}
           </Typography>
         ))}
@@ -393,7 +106,7 @@ export default function MathsPage() {
           console.log("Error getting score:", error);
           return { levelId: level.levelId, data: null };
         }
-      })
+      }),
     );
 
     const scoreList: Record<string, ScoreData> = {};
@@ -432,7 +145,9 @@ export default function MathsPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100", color: "text.primary" }}>
+    <Box
+      sx={{ minHeight: "100vh", bgcolor: "grey.100", color: "text.primary" }}
+    >
       {/* Header */}
       <Box
         sx={{
@@ -493,16 +208,22 @@ export default function MathsPage() {
           {levels.map((level) => {
             const scoreData = scores[level.levelId];
 
-            const completed = scoreData?.status === "Completed";
+            // a saved score means the test was completed before
+            // (older "InProgress" documents still keep the last completed score)
+            const total = Number(scoreData?.totalNoQuestions ?? 0);
+            const completed = total > 0;
 
             // score chip: result icon (or badge icon) + score, red when the test must be repeated
             const score = Number(scoreData?.score ?? 0);
-            const total = Number(scoreData?.totalNoQuestions ?? 0);
             const info = getResultInfo(score, total);
-            const badge = info.status === "repeat" ? "" : String(scoreData?.latestBadge ?? "");
+            const badge =
+              info.status === "repeat"
+                ? ""
+                : String(scoreData?.latestBadge ?? "");
             const chipIcon = badge ? getBadgeIcon(badge) : info.icon;
 
-            const isMultiplication = level.categoryName.startsWith("Multiplication");
+            const isMultiplication =
+              level.categoryName.startsWith("Multiplication");
 
             const secondLine = isMultiplication
               ? level.categoryName.replace("Multiplication", "").trim()
@@ -531,7 +252,10 @@ export default function MathsPage() {
                           Multiplication
                         </Typography>
 
-                        <Typography variant="subtitle1" sx={{ fontWeight: 900, mt: 0.5 }}>
+                        <Typography
+                          variant="subtitle1"
+                          sx={{ fontWeight: 900, mt: 0.5 }}
+                        >
                           {secondLine}
                         </Typography>
                       </>
@@ -539,17 +263,6 @@ export default function MathsPage() {
                       <Typography variant="h6" sx={{ fontWeight: 900 }}>
                         {level.categoryName}
                       </Typography>
-                    )}
-
-                    {scoreData?.status === "InProgress" && (
-                      <Chip
-                        icon={<PendingIcon />}
-                        label="In progress"
-                        color="warning"
-                        variant="outlined"
-                        size="small"
-                        sx={{ mt: 2, fontWeight: 700 }}
-                      />
                     )}
 
                     {completed && (
@@ -569,7 +282,6 @@ export default function MathsPage() {
         </Box>
       </Box>
 
-      // Drawer for menu
       <PracticeDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Box>
   );

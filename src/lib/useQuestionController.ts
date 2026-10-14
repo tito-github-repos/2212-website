@@ -2,7 +2,11 @@
 
 // src/lib/useQuestionController.ts
 // React version of the Flutter QuestionController (GetX). The page uses it the same way
-// the mobile screens use the controller: load, nextQuestion, submitQuiz, saveAndClose.
+// the mobile screens use the controller: load, nextQuestion, submitQuiz, discardAttempt.
+//
+// RULE: nothing from a running attempt is written to the database.
+// Answers stay in memory and are saved only when the test is completed.
+// Leaving the test just throws the attempt away, so the previous completed result is untouched.
 
 import { useEffect, useRef, useState } from "react";
 
@@ -14,15 +18,12 @@ import {
   fetchQuestions,
   fetchSavedAnswers,
   fetchScoreData,
-  firstUnansweredIndex,
   getAvailableLevelsWithCategories,
   getNextAttemptNumber,
   getStudent,
   moveAnswersToAttemptHistory,
   moveScoreToAttemptHistory,
   saveAnswerDoc,
-  saveInProgress,
-  sumSecondsTaken,
   updateScoreSheet,
   type LevelInfo,
   type QuestionItem,
@@ -40,6 +41,14 @@ export type SubmitResult = {
   saved: boolean; // false for guests, or when saving failed
   nextLevel: LevelInfo | null;
   error?: string;
+};
+
+type KeptAnswer = {
+  index: number;
+  answer: string;
+  isSubmit: boolean;
+  seconds: number;
+  startedAt: Date;
 };
 
 export function useQuestionController(subject: string, level: string) {
@@ -65,14 +74,17 @@ export function useQuestionController(subject: string, level: string) {
   const indexRef = useRef(0);
 
   const questionStartRef = useRef<Date>(new Date()); // start of the current question
-  const attemptStartRef = useRef<Date>(new Date()); // start of this sitting
-  const previousSecondsRef = useRef(0); // seconds saved by an earlier sitting (continue)
+  const attemptStartRef = useRef<Date>(new Date()); // start of this attempt
   const elapsedRef = useRef(0);
   const questionTimeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const pendingRef = useRef<Promise<unknown>[]>([]);
+  const keptRef = useRef<KeptAnswer[]>([]); // answers of the running attempt (memory only)
   const submittingRef = useRef(false);
+
+  // what is already in the database when the page opens
+  const previousCompletedRef = useRef(false); // a completed result exists
+  const leftoverAnswersRef = useRef(0); // answers left by an old unfinished attempt
 
   /* -------------------------------- timers --------------------------------- */
 
@@ -95,20 +107,11 @@ export function useQuestionController(subject: string, level: string) {
     }, 1000);
   }
 
-  useEffect(() => {
-    loadQuestions();
-
-    return () => stopTimers();
-  }, [subject, level]);
-
   /* ------------------------------ load questions --------------------------- */
 
-  // only reads data, nothing is changed until startAttempt() is called
+  // only reads data, nothing is changed in the database
   async function loadQuestions() {
     try {
-      setIsLoading(true);
-      setError("");
-
       const currentStudent = await getStudent();
       studentRef.current = currentStudent;
       setStudent(currentStudent);
@@ -121,24 +124,27 @@ export function useQuestionController(subject: string, level: string) {
         checkQuestionBank(items);
       }
 
-      let answers: string[] = new Array(items.length).fill("");
-      let index = 0;
       let score: ScoreData | null = null;
+      let leftover = 0;
 
       if (!currentStudent.isGuest && currentStudent.id) {
-        answers = await fetchSavedAnswers(currentStudent.id, subject, level, items.length);
-        index = firstUnansweredIndex(answers);
+        const saved = await fetchSavedAnswers(currentStudent.id, subject, level, items.length);
+        leftover = saved.filter((answer) => answer !== "").length;
         score = await fetchScoreData(currentStudent.id, subject, level);
       }
 
-      answersRef.current = answers;
-      setUserAnswers([...answers]);
+      // a new attempt always starts empty from question 1
+      answersRef.current = new Array(items.length).fill("");
+      setUserAnswers([...answersRef.current]);
 
-      indexRef.current = index;
-      setCurrentQuestionIndex(index);
+      indexRef.current = 0;
+      setCurrentQuestionIndex(0);
+
+      previousCompletedRef.current = score?.status === "Completed";
+      leftoverAnswersRef.current = leftover;
 
       setPrevious(score);
-      setSavedCount(answers.filter((answer) => answer !== "").length);
+      setSavedCount(leftover);
 
       setIsLoading(false);
     } catch (e) {
@@ -152,42 +158,28 @@ export function useQuestionController(subject: string, level: string) {
     }
   }
 
+  // load when the subject or level changes (must stay BELOW loadQuestions)
+  useEffect(() => {
+    loadQuestions();
+
+    return () => stopTimers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject, level]);
+
   /* ------------------------------ start attempt ----------------------------- */
 
-  // retry = true: the old attempt goes to attemptHistory and every answer is cleared
-  // retry = false: continue from the first unanswered question
-  async function startAttempt(retry: boolean) {
-    const currentStudent = studentRef.current;
+  // always a fresh start from question 1, nothing is written to the database
+  function startAttempt() {
     const count = questionsRef.current.length;
 
-    previousSecondsRef.current = 0;
-
-    if (retry) {
-      if (!currentStudent.isGuest && currentStudent.id) {
-        await moveScoreToAttemptHistory(currentStudent.id, subject, level);
-        await moveAnswersToAttemptHistory(currentStudent.id, subject, level);
-        await deleteAllAnswers(currentStudent.id, subject, level);
-      }
-
-      answersRef.current = new Array(count).fill("");
-      setUserAnswers([...answersRef.current]);
-
-      indexRef.current = 0;
-      setCurrentQuestionIndex(0);
-
-      setSavedCount(0);
-      console.log("Retry: previous attempt moved to history and answers cleared");
-    } else if (!currentStudent.isGuest && currentStudent.id) {
-      // continuing a half-finished test: keep the seconds already used
-      try {
-        previousSecondsRef.current = await sumSecondsTaken(currentStudent.id, subject, level);
-      } catch (e) {
-        console.error("Could not read the earlier seconds:", e);
-      }
-    }
-
-    pendingRef.current = [];
+    keptRef.current = [];
     submittingRef.current = false;
+
+    answersRef.current = new Array(count).fill("");
+    setUserAnswers([...answersRef.current]);
+
+    indexRef.current = 0;
+    setCurrentQuestionIndex(0);
 
     elapsedRef.current = 0;
     questionTimeRef.current = 0;
@@ -216,40 +208,26 @@ export function useQuestionController(subject: string, level: string) {
     setUserAnswers([...answersRef.current]);
   }
 
-  function saveInBackground(index: number, answer: string, isSubmit: boolean, seconds: number) {
-    const currentStudent = studentRef.current;
+  // keeps the answer in memory only
+  function keepAnswer(index: number, answer: string, isSubmit: boolean, seconds: number) {
+    if (!questionsRef.current[index]) return;
 
-    if (currentStudent.isGuest || !currentStudent.id) return; // guests are never saved
-
-    const item = questionsRef.current[index];
-    if (!item) return;
-
-    const saving = saveAnswerDoc({
-      studentId: currentStudent.id,
-      subject,
-      level,
+    keptRef.current.push({
       index,
-      question: item.question,
-      correctAnswer: item.answer,
       answer,
       isSubmit,
-      secondsTaken: seconds,
+      seconds,
       startedAt: questionStartRef.current,
-    }).catch((e) => {
-      console.error("Error saving answer:", e);
     });
-
-    pendingRef.current.push(saving);
   }
 
   /* ---------------------------- next question ------------------------------- */
 
-  // shows the next question straight away, saving happens in the background
   function nextQuestion(answer: string) {
     const index = indexRef.current;
 
     storeAnswer(index, answer);
-    saveInBackground(index, answer, false, questionTimeRef.current);
+    keepAnswer(index, answer, false, questionTimeRef.current);
 
     if (index < questionsRef.current.length - 1) {
       indexRef.current = index + 1;
@@ -286,15 +264,14 @@ export function useQuestionController(subject: string, level: string) {
     stopTimers();
 
     // the real time of the test, measured NOW (saving to Firebase is not counted)
-    const sessionSeconds = Math.floor((Date.now() - attemptStartRef.current.getTime()) / 1000);
-    const totalSeconds = previousSecondsRef.current + sessionSeconds;
+    const totalSeconds = Math.floor((Date.now() - attemptStartRef.current.getTime()) / 1000);
     const averageSeconds = total > 0 ? Math.floor(totalSeconds / total) : 0;
 
     const index = indexRef.current;
 
     if (lastAnswer !== "") {
       storeAnswer(index, lastAnswer);
-      saveInBackground(index, lastAnswer, true, questionTimeRef.current);
+      keepAnswer(index, lastAnswer, true, questionTimeRef.current);
     }
 
     // score from the local answers (the same rule as the mobile app)
@@ -322,7 +299,42 @@ export function useQuestionController(subject: string, level: string) {
     }
 
     try {
-      await Promise.all(pendingRef.current);
+      // the test is completed, only now the database is changed
+      if (previousCompletedRef.current) {
+        // retry: the old completed result goes to history
+        await moveScoreToAttemptHistory(currentStudent.id, subject, level);
+        await moveAnswersToAttemptHistory(currentStudent.id, subject, level);
+        await deleteAllAnswers(currentStudent.id, subject, level);
+      } else if (leftoverAnswersRef.current > 0) {
+        // answers left by an old unfinished attempt: clear them
+        await deleteAllAnswers(currentStudent.id, subject, level);
+      }
+
+      await Promise.all(
+        keptRef.current.map((kept) => {
+          const question = items[kept.index];
+          if (!question) return Promise.resolve();
+
+          return saveAnswerDoc({
+            studentId: currentStudent.id,
+            subject,
+            level,
+            index: kept.index,
+            question: question.question,
+            correctAnswer: question.answer,
+            answer: kept.answer,
+            isSubmit: kept.isSubmit,
+            secondsTaken: kept.seconds,
+            startedAt: kept.startedAt,
+          }).catch((e) => {
+            console.error("Error saving answer:", e);
+          });
+        })
+      );
+
+      keptRef.current = [];
+      previousCompletedRef.current = true;
+      leftoverAnswersRef.current = 0;
 
       const badge = calculateBadge(correct, total, totalSeconds);
 
@@ -373,39 +385,12 @@ export function useQuestionController(subject: string, level: string) {
     }
   }
 
-  /* ----------------------------- save and close ----------------------------- */
+  /* ----------------------------- discard attempt ---------------------------- */
 
-  // leave the test half way: answers stay saved and the level is marked InProgress
-  async function saveAndClose(currentAnswer: string) {
+  // leave the test: the running attempt is thrown away, the database is not touched
+  function discardAttempt() {
     stopTimers();
-
-    const currentStudent = studentRef.current;
-
-    if (currentStudent.isGuest || !currentStudent.id) return; // guests: just leave
-
-    try {
-      const index = indexRef.current;
-
-      if (currentAnswer !== "") {
-        const seconds = Math.floor((Date.now() - questionStartRef.current.getTime()) / 1000);
-
-        storeAnswer(index, currentAnswer);
-        saveInBackground(index, currentAnswer, false, seconds);
-      }
-
-      await Promise.all(pendingRef.current);
-
-      await saveInProgress(
-        currentStudent.id,
-        subject,
-        level,
-        questionsRef.current[0]?.category || level
-      );
-
-      console.log("Saved InProgress state");
-    } catch (e) {
-      console.error("Error in saveAndClose:", e);
-    }
+    keptRef.current = [];
   }
 
   return {
@@ -425,7 +410,7 @@ export function useQuestionController(subject: string, level: string) {
     startAttempt,
     nextQuestion,
     submitQuiz,
-    saveAndClose,
+    discardAttempt,
     // synchronous helpers for the voice hook
     getCorrectAnswer,
     isLastQuestion,
