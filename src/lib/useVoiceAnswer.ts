@@ -241,7 +241,7 @@ export function useVoiceAnswer({
       const correctIsNumber = NUMBER_LIKE.test(toDisplayAnswer(correctAnswer));
 
       if (correctIsNumber && !NUMBER_LIKE.test(shown)) {
-        setHeardText(`${heard} ?`);
+        setHeardText(" ");
         clearTimer();
         waiting = false; // when this session ends, a new one opens automatically
         return;
