@@ -5,6 +5,7 @@ import { Box, Container, Grid, Stack, Typography } from "@mui/material";
 import RepeatRoundedIcon from "@mui/icons-material/RepeatRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
+import KidsIcon from "../icons/KidsIcon";
 
 const features = [
   {
@@ -18,6 +19,10 @@ const features = [
   {
     icon: SpeedRoundedIcon,
     text: "Timed sessions help you boost your speed & accuracy",
+  },
+  {
+    icon: KidsIcon,
+    text: "Suitable for children below 10 years",
   },
 ];
 
