@@ -3,7 +3,7 @@
 // src/app/components/LevelCompletedDialog.tsx
 // Popup shown right after a test is finished.
 
-import Alert from "@mui/material/Alert";
+import Alert, { type AlertColor } from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -40,24 +40,76 @@ type Props = {
   onNextLevel: (level: NextLevel) => void;
 };
 
-const blackButtonSx = {
+/* dark theme colours (same values as globals.css) */
+const CARD = "#141414";
+const CARD_SOFT = "#1f1f1f";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+const DANGER = "#ff6b6b";
+const SUCCESS = "#4ade80";
+
+// dark version of the MUI Alert for each severity
+const alertColors: Record<AlertColor, { bg: string; color: string }> = {
+  info: { bg: "rgba(56,189,248,0.12)", color: "#7dd3fc" },
+  warning: { bg: "rgba(251,146,60,0.12)", color: "#fdba74" },
+  error: { bg: "rgba(255,107,107,0.12)", color: "#ff8a8a" },
+  success: { bg: "rgba(74,222,128,0.12)", color: "#86efac" },
+};
+
+function darkAlertSx(severity: AlertColor, extra: object = {}) {
+  const c = alertColors[severity] ?? alertColors.info;
+
+  return {
+    bgcolor: c.bg,
+    color: c.color,
+    border: `1px solid ${c.color}33`,
+    "& .MuiAlert-icon": { color: c.color },
+    ...extra,
+  };
+}
+
+// main button: white with black text (a black button would disappear on black)
+const mainButtonSx = {
   py: 1.5,
   borderRadius: 4,
-  bgcolor: "#000",
-  color: "#fff",
+  bgcolor: "#fff",
+  color: "#000",
   textTransform: "none",
   fontWeight: 700,
-  "&:hover": { bgcolor: "#222" },
+  "&:hover": { bgcolor: "#e5e5e5" },
+  "&.Mui-disabled": {
+    bgcolor: "rgba(255,255,255,0.25)",
+    color: "rgba(255,255,255,0.5)",
+  },
 } as const;
 
+// second button: white outline
 const outlinedButtonSx = {
   py: 1.5,
   borderRadius: 4,
-  color: "#000",
-  borderColor: "#000",
+  color: "#fff",
+  borderColor: "rgba(255,255,255,0.6)",
   textTransform: "none",
   fontWeight: 700,
-  "&:hover": { borderColor: "#000", bgcolor: "grey.100" },
+  "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.08)" },
+  "&.Mui-disabled": {
+    color: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+} as const;
+
+const badgeChipSx = {
+  fontWeight: 700,
+  color: SUCCESS,
+  borderColor: SUCCESS,
+} as const;
+
+const timeChipSx = {
+  fontWeight: 700,
+  color: TEXT,
+  borderColor: BORDER,
+  "& .MuiChip-icon": { color: TEXT },
 } as const;
 
 export default function LevelCompletedDialog({
@@ -76,51 +128,80 @@ export default function LevelCompletedDialog({
   const badge = result?.badge ?? "";
   const nextLevel = result?.nextLevel ?? null;
 
+  // bright colours so the result title is readable on black
+  const resultColor = info.status === "repeat" ? DANGER : SUCCESS;
+
   return (
     <Dialog
       open={open}
       fullWidth
       maxWidth="xs"
-      slotProps={{ paper: { sx: { borderRadius: 4, p: 0.5 } } }}
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: CARD,
+            backgroundImage: "none",
+            color: TEXT,
+            border: `1px solid ${BORDER}`,
+            borderRadius: 4,
+            p: 0.5,
+          },
+        },
+        backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.75)" } },
+      }}
     >
       <DialogContent sx={{ textAlign: "center", pb: 1 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, color: TEXT }}>
           {guest ? "Quiz completed" : "Level completed"}
         </Typography>
 
         {guest ? (
-          <Typography color="text.secondary">
+          <Typography sx={{ color: TEXT_SOFT }}>
             Log in to save your progress and view activity.
           </Typography>
         ) : (
           <>
             <Avatar
-              sx={{ width: 72, height: 72, bgcolor: "grey.100", fontSize: 38, mx: "auto", mb: 1.5 }}
+              sx={{ width: 72, height: 72, bgcolor: CARD_SOFT, fontSize: 38, mx: "auto", mb: 1.5 }}
             >
               {info.icon}
             </Avatar>
 
             <Paper
-              variant="outlined"
-              sx={{ py: 1.5, borderRadius: 3, bgcolor: "grey.50", borderColor: "grey.200", mb: 1.5 }}
+              elevation={0}
+              sx={{
+                py: 1.5,
+                borderRadius: 3,
+                bgcolor: CARD_SOFT,
+                backgroundImage: "none",
+                border: `1px solid ${BORDER}`,
+                mb: 1.5,
+              }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{ color: TEXT_SOFT }}>
                 Your score
               </Typography>
 
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: TEXT }}>
                 {totalScore} / {totalQuestions}
               </Typography>
             </Paper>
 
-            <Typography variant="h6" sx={{ fontWeight: 700, color: info.color, mb: 1.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: resultColor, mb: 1.5 }}>
               {info.title}
             </Typography>
 
             {!result && (
               <Box sx={{ mb: 1 }}>
-                <LinearProgress sx={{ height: 5, borderRadius: 3 }} />
-                <Typography variant="caption" color="text.secondary">
+                <LinearProgress
+                  sx={{
+                    height: 5,
+                    borderRadius: 3,
+                    bgcolor: "rgba(255,255,255,0.15)",
+                    "& .MuiLinearProgress-bar": { bgcolor: "#fff" },
+                  }}
+                />
+                <Typography variant="caption" sx={{ color: TEXT_SOFT }}>
                   Saving your score...
                 </Typography>
               </Box>
@@ -131,9 +212,8 @@ export default function LevelCompletedDialog({
                 {badge && (
                   <Chip
                     label={`${getBadgeIcon(badge)} ${badge}`}
-                    color="success"
                     variant="outlined"
-                    sx={{ fontWeight: 700 }}
+                    sx={badgeChipSx}
                   />
                 )}
 
@@ -141,19 +221,22 @@ export default function LevelCompletedDialog({
                   icon={<TimerOutlinedIcon />}
                   label={formatTime(result.totalSeconds)}
                   variant="outlined"
-                  sx={{ fontWeight: 700 }}
+                  sx={timeChipSx}
                 />
               </Stack>
             )}
 
             {result?.error && (
-              <Alert severity="warning" sx={{ mb: 1, textAlign: "left" }}>
+              <Alert severity="warning" sx={darkAlertSx("warning", { mb: 1, textAlign: "left" })}>
                 {result.error}
               </Alert>
             )}
 
             {result && (
-              <Alert severity={info.severity} sx={{ mb: 1.5, textAlign: "left" }}>
+              <Alert
+                severity={info.severity}
+                sx={darkAlertSx(info.severity, { mb: 1.5, textAlign: "left" })}
+              >
                 {info.message}
               </Alert>
             )}
@@ -165,14 +248,14 @@ export default function LevelCompletedDialog({
                   value={100}
                   size={44}
                   thickness={4}
-                  sx={{ color: "grey.300", position: "absolute" }}
+                  sx={{ color: "rgba(255,255,255,0.2)", position: "absolute" }}
                 />
                 <CircularProgress
                   variant="determinate"
                   value={(countdown / countdownStart) * 100}
                   size={44}
                   thickness={4}
-                  sx={{ color: "#222" }}
+                  sx={{ color: "#fff" }}
                 />
                 <Box
                   sx={{
@@ -183,7 +266,9 @@ export default function LevelCompletedDialog({
                     justifyContent: "center",
                   }}
                 >
-                  <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{countdown}</Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: TEXT }}>
+                    {countdown}
+                  </Typography>
                 </Box>
               </Box>
             )}
@@ -202,7 +287,7 @@ export default function LevelCompletedDialog({
       >
         {guest ? (
           <>
-            <Button fullWidth variant="contained" onClick={onLogin} sx={blackButtonSx}>
+            <Button fullWidth variant="contained" onClick={onLogin} sx={mainButtonSx}>
               Log in
             </Button>
 
@@ -218,13 +303,19 @@ export default function LevelCompletedDialog({
               disabled={!result}
               endIcon={nextLevel ? <ArrowForwardIcon /> : <HomeIcon />}
               onClick={() => (nextLevel ? onNextLevel(nextLevel) : onHome())}
-              sx={blackButtonSx}
+              sx={mainButtonSx}
             >
               {nextLevel ? "Move to Next Level" : "Back to Home"}
             </Button>
 
             {nextLevel && (
-              <Button fullWidth variant="outlined" disabled={!result} onClick={onHome} sx={outlinedButtonSx}>
+              <Button
+                fullWidth
+                variant="outlined"
+                disabled={!result}
+                onClick={onHome}
+                sx={outlinedButtonSx}
+              >
                 Back to Home
               </Button>
             )}

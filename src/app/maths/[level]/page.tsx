@@ -1,11 +1,11 @@
-//src\app\maths\[level]\page.tsx
+// //src\app\maths\[level]\page.tsx
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 
 import { keyframes } from "@emotion/react";
-import Alert from "@mui/material/Alert";
+import Alert, { type AlertColor } from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -43,6 +43,16 @@ import ExitQuizDialog from "@/app/components/ExitQuizDialog";
 const SUBJECT = "Maths";
 const COUNTDOWN_START = 5; // seconds shown in the completed popup before going to the levels
 
+/* dark theme colours (same values as globals.css) */
+const BG = "#000";
+const CARD = "#141414";
+const CARD_SOFT = "#1f1f1f";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+const DANGER = "#ff6b6b";
+const SUCCESS = "#4ade80";
+
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
   "You need to solve each test by less than a minute.",
@@ -64,24 +74,73 @@ const pulse = keyframes`
   100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
 `;
 
-const pageSx = { minHeight: "100vh", bgcolor: "#fff", color: "text.primary" };
+const pageSx = { minHeight: "100vh", bgcolor: BG, color: TEXT };
 
 const numSx = { fontVariantNumeric: "tabular-nums", letterSpacing: -1 };
 
-const blackButtonSx = {
-  py: 1.75,
-  borderRadius: 4,
-  bgcolor: "#000",
-  color: "#fff",
-  "&:hover": { bgcolor: "#222" },
+// dark card used for the score card, instructions card, question card, popup...
+const cardSx = {
+  bgcolor: CARD,
+  backgroundImage: "none",
+  color: TEXT,
+  border: `1px solid ${BORDER}`,
 };
 
+// main button: white with black text (a black button would disappear on black)
+const mainButtonSx = {
+  py: 1.75,
+  borderRadius: 4,
+  bgcolor: "#fff",
+  color: "#000",
+  "&:hover": { bgcolor: "#e5e5e5" },
+  "&.Mui-disabled": {
+    bgcolor: "rgba(255,255,255,0.25)",
+    color: "rgba(255,255,255,0.5)",
+  },
+};
+
+// second button: white outline
 const outlinedButtonSx = {
   py: 1.5,
   borderRadius: 4,
-  color: "#000",
-  borderColor: "#000",
-  "&:hover": { borderColor: "#000", bgcolor: "grey.100" },
+  color: "#fff",
+  borderColor: "rgba(255,255,255,0.6)",
+  "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.08)" },
+};
+
+// dark version of the MUI Alert for each severity
+const alertColors: Record<AlertColor, { bg: string; color: string }> = {
+  info: { bg: "rgba(56,189,248,0.12)", color: "#7dd3fc" },
+  warning: { bg: "rgba(251,146,60,0.12)", color: "#fdba74" },
+  error: { bg: "rgba(255,107,107,0.12)", color: "#ff8a8a" },
+  success: { bg: "rgba(74,222,128,0.12)", color: "#86efac" },
+};
+
+function darkAlertSx(severity: AlertColor, extra: object = {}) {
+  const c = alertColors[severity] ?? alertColors.info;
+
+  return {
+    bgcolor: c.bg,
+    color: c.color,
+    border: `1px solid ${c.color}33`,
+    "& .MuiAlert-icon": { color: c.color },
+    ...extra,
+  };
+}
+
+// green outlined chip (badge)
+const badgeChipSx = {
+  fontWeight: 700,
+  color: SUCCESS,
+  borderColor: SUCCESS,
+};
+
+// white outlined chip (timer)
+const timeChipSx = {
+  fontWeight: 700,
+  color: TEXT,
+  borderColor: BORDER,
+  "& .MuiChip-icon": { color: TEXT },
 };
 
 function nextLevelPath(level: LevelInfo) {
@@ -341,8 +400,8 @@ function LevelQuiz({ level }: { level: string }) {
   if (isLoading) {
     return (
       <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
-        <CircularProgress size={28} sx={{ color: "#000" }} />
-        <Typography color="text.secondary">Loading...</Typography>
+        <CircularProgress size={28} sx={{ color: TEXT }} />
+        <Typography sx={{ color: TEXT_SOFT }}>Loading...</Typography>
       </Box>
     );
   }
@@ -350,7 +409,9 @@ function LevelQuiz({ level }: { level: string }) {
   if (error) {
     return (
       <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error" sx={darkAlertSx("error")}>
+          {error}
+        </Alert>
       </Box>
     );
   }
@@ -370,26 +431,30 @@ function LevelQuiz({ level }: { level: string }) {
     const badge = info.status === "repeat" ? "" : String(previous?.latestBadge ?? "");
     const seconds = typeof previous?.latestTotalSeconds === "number" ? previous.latestTotalSeconds : null;
 
+    // bright colours so the result title is readable on black
+    const resultColor = info.status === "repeat" ? DANGER : SUCCESS;
+
     return (
       <Box sx={{ ...pageSx, display: "flex", alignItems: "center", justifyContent: "center", px: 2.5, py: 4 }}>
-        <Paper elevation={8} sx={{ width: "100%", maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 6, textAlign: "center" }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+        <Paper
+          elevation={0}
+          sx={{ ...cardSx, width: "100%", maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 6, textAlign: "center" }}
+        >
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: TEXT }}>
             {title} Score
           </Typography>
 
-          <Avatar sx={{ width: 96, height: 96, bgcolor: "grey.100", fontSize: 48, mx: "auto", mb: 2 }}>
+          <Avatar sx={{ width: 96, height: 96, bgcolor: CARD_SOFT, fontSize: 48, mx: "auto", mb: 2 }}>
             {info.icon}
           </Avatar>
 
-          <Typography color="text.secondary" sx={{ mb: 1 }}>
-            Your Score
-          </Typography>
+          <Typography sx={{ mb: 1, color: TEXT_SOFT }}>Your Score</Typography>
 
-          <Typography variant="h2" sx={{ fontWeight: 700 }}>
+          <Typography variant="h2" sx={{ fontWeight: 700, color: TEXT }}>
             {score} / {total}
           </Typography>
 
-          <Typography variant="h5" sx={{ fontWeight: 700, color: info.color, mt: 1, mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: resultColor, mt: 1, mb: 2 }}>
             {info.title}
           </Typography>
 
@@ -397,9 +462,8 @@ function LevelQuiz({ level }: { level: string }) {
             {badge && (
               <Chip
                 label={`${getBadgeIcon(badge)} ${badge}`}
-                color="success"
                 variant="outlined"
-                sx={{ fontWeight: 700 }}
+                sx={badgeChipSx}
               />
             )}
 
@@ -408,17 +472,17 @@ function LevelQuiz({ level }: { level: string }) {
                 icon={<TimerOutlinedIcon />}
                 label={formatTime(seconds)}
                 variant="outlined"
-                sx={{ fontWeight: 700 }}
+                sx={timeChipSx}
               />
             )}
           </Stack>
 
-          <Alert severity={info.severity} sx={{ mb: 3, textAlign: "left" }}>
+          <Alert severity={info.severity} sx={darkAlertSx(info.severity, { mb: 3, textAlign: "left" })}>
             {info.message}
           </Alert>
 
           <Stack spacing={1.5}>
-            <Button fullWidth size="large" variant="contained" onClick={() => setRetrying(true)} sx={blackButtonSx}>
+            <Button fullWidth size="large" variant="contained" onClick={() => setRetrying(true)} sx={mainButtonSx}>
               Retry Test
             </Button>
 
@@ -440,36 +504,37 @@ function LevelQuiz({ level }: { level: string }) {
           <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
             <IconButton
               aria-label="Back"
+              sx={{ color: TEXT }}
               onClick={() => (retrying ? setRetrying(false) : router.push("/maths"))}
             >
               <ArrowBackIcon />
             </IconButton>
 
-            <Typography variant="h4" sx={{ fontWeight: 700, textAlign: "center", flex: 1, pr: 5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, textAlign: "center", flex: 1, pr: 5, color: TEXT }}>
               Instructions
             </Typography>
           </Box>
 
-          <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, bgcolor: "grey.50", borderColor: "grey.200" }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+          <Paper elevation={0} sx={{ ...cardSx, p: 3, borderRadius: 6 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, color: TEXT }}>
               {title}
             </Typography>
 
             {student.isGuest && (
-              <Alert severity="info" sx={{ mb: 2 }}>
+              <Alert severity="info" sx={darkAlertSx("info", { mb: 2 })}>
                 You are not logged in, so your answers will not be saved.
               </Alert>
             )}
 
             {retrying && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
+              <Alert severity="warning" sx={darkAlertSx("warning", { mb: 2 })}>
                 Your previous result stays until you finish this attempt. Then it moves to your
                 history.
               </Alert>
             )}
 
             {/* -------------------------start 1 minute mode --------------------- */}
-            {/* <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+            {/* <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
               Enable 1 Minute Mode
             </Typography>
 
@@ -481,42 +546,45 @@ function LevelQuiz({ level }: { level: string }) {
                   checked={oneMinuteMode}
                   onChange={(e) => setOneMinuteMode(e.target.checked)}
                   sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#000" },
+                    "& .MuiSwitch-switchBase": { color: "#bbb" },
+                    "& .MuiSwitch-track": { backgroundColor: "#fff", opacity: 0.3 },
+                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#fff" },
                     "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                      backgroundColor: "#000",
+                      backgroundColor: "#fff",
+                      opacity: 0.6,
                     },
                   }}
                 />
               }
               label={
-                <Typography color="text.secondary" sx={{ pr: 2 }}>
+                <Typography sx={{ pr: 2, color: TEXT_SOFT }}>
                   Automatically save after 1 minute whether you answered all questions or not.
                   You cannot leave the test until the timer finishes.
                 </Typography>
               }
             /> */}
 
-       {/* --------------------end 1 minite module -------------------      */}
+            {/* --------------------end 1 minite module -------------------      */}
 
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
               General
             </Typography>
 
             <Stack spacing={1} sx={{ mb: 3 }}>
               {GENERAL_LINES.map((line) => (
-                <Typography key={line} color="text.secondary">
+                <Typography key={line} sx={{ color: TEXT_SOFT }}>
                   {line}
                 </Typography>
               ))}
             </Stack>
 
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
               Specifics
             </Typography>
 
             <Stack spacing={1} sx={{ mb: 3 }}>
               {SPECIFIC_LINES.map((line) => (
-                <Typography key={line} color="text.secondary">
+                <Typography key={line} sx={{ color: TEXT_SOFT }}>
                   {line}
                 </Typography>
               ))}
@@ -528,7 +596,7 @@ function LevelQuiz({ level }: { level: string }) {
               variant="contained"
               disabled={starting}
               onClick={startQuiz}
-              sx={blackButtonSx}
+              sx={mainButtonSx}
             >
               {starting ? "Starting..." : "Start"}
             </Button>
@@ -559,22 +627,27 @@ function LevelQuiz({ level }: { level: string }) {
     <Box sx={pageSx}>
       <Container maxWidth="md" sx={{ py: 2.5 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-          <IconButton aria-label="Back" onClick={handleBack} disabled={leaving}>
+          <IconButton
+            aria-label="Back"
+            onClick={handleBack}
+            disabled={leaving}
+            sx={{ color: TEXT, "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
+          >
             <ArrowBackIcon />
           </IconButton>
 
-          <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", flex: 1, px: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", flex: 1, px: 1, color: TEXT }}>
             {title}
           </Typography>
 
           <Box sx={{ textAlign: "right", minWidth: 84 }}>
             {challengeRunning && (
-              <Typography variant="caption" color="error" sx={{ fontWeight: 700, display: "block" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, display: "block", color: DANGER }}>
                 Quiz : {formatTime(quizSeconds)}
               </Typography>
             )}
 
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: TEXT }}>
               {currentQuestionIndex + 1}/{questions.length}
             </Typography>
           </Box>
@@ -588,8 +661,8 @@ function LevelQuiz({ level }: { level: string }) {
               mb: 3,
               height: 8,
               borderRadius: 4,
-              bgcolor: "grey.200",
-              "& .MuiLinearProgress-bar": { bgcolor: quizSeconds <= 10 ? "#dc2626" : "#000" },
+              bgcolor: "rgba(255,255,255,0.15)",
+              "& .MuiLinearProgress-bar": { bgcolor: quizSeconds <= 10 ? DANGER : "#fff" },
             }}
           />
         )}
@@ -599,26 +672,39 @@ function LevelQuiz({ level }: { level: string }) {
             icon={<TimerOutlinedIcon />}
             label={formatTime(totalElapsedSeconds)}
             variant="outlined"
-            sx={{ height: 48, px: 1, fontSize: 18, fontWeight: 700, borderWidth: 2, borderColor: "text.primary" }}
+            sx={{
+              height: 48,
+              px: 1,
+              fontSize: 18,
+              fontWeight: 700,
+              borderWidth: 2,
+              borderColor: TEXT,
+              color: TEXT,
+              "& .MuiChip-icon": { color: TEXT },
+            }}
           />
         </Box>
 
-        <Paper elevation={6} sx={{ p: { xs: 4, sm: 5 }, textAlign: "center", borderRadius: 6, mb: 5 }}>
-          <Typography variant="h3" sx={{ fontWeight: 700, fontSize: { xs: "2rem", sm: "3rem" } }}>
+        <Paper
+          elevation={0}
+          sx={{ ...cardSx, p: { xs: 4, sm: 5 }, textAlign: "center", borderRadius: 6, mb: 5 }}
+        >
+          <Typography variant="h3" sx={{ fontWeight: 700, fontSize: { xs: "2rem", sm: "3rem" }, color: TEXT }}>
             {current?.question}
           </Typography>
         </Paper>
 
-        <Card elevation={6} sx={{ borderRadius: 6 }}>
+        <Card elevation={0} sx={{ ...cardSx, borderRadius: 6 }}>
           <CardActionArea
             onClick={startListening}
             disabled={listening}
-            sx={{ p: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}
+            sx={{ p: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, color: TEXT }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 600 }} color={heardText ? "text.primary" : "text.secondary"}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: heardText ? TEXT : TEXT_SOFT }}>
               {micText}
             </Typography>
 
+            {/* orange mic button stays the same, it looks good on black */}
             <Avatar
               sx={{
                 width: 56,
@@ -634,7 +720,7 @@ function LevelQuiz({ level }: { level: string }) {
         </Card>
 
         {micMessage && (
-          <Alert severity="error" variant="outlined" sx={{ mt: 2 }}>
+          <Alert severity="error" variant="outlined" sx={darkAlertSx("error", { mt: 2 })}>
             {micMessage}
           </Alert>
         )}
@@ -678,38 +764,45 @@ function LevelQuiz({ level }: { level: string }) {
         open={completed}
         fullWidth
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: 3, p: 0.5 } } }}
+        slotProps={{ paper: { sx: { ...cardSx, borderRadius: 3, p: 0.5 } } }}
       >
         <DialogContent sx={{ textAlign: "center", pb: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, color: TEXT }}>
             {guest ? "Quiz completed" : "Level completed"}
           </Typography>
 
           {guest ? (
-            <Typography color="text.secondary">Log in to save your progress and view activity.</Typography>
+            <Typography sx={{ color: TEXT_SOFT }}>Log in to save your progress and view activity.</Typography>
           ) : (
             <>
-              <Avatar sx={{ width: 72, height: 72, bgcolor: "grey.100", fontSize: 38, mx: "auto", mb: 1.5 }}>
+              <Avatar sx={{ width: 72, height: 72, bgcolor: CARD_SOFT, fontSize: 38, mx: "auto", mb: 1.5 }}>
                 {resultInfo.icon}
               </Avatar>
 
               <Paper
-                variant="outlined"
-                sx={{ py: 1.5, borderRadius: 2.5, bgcolor: "grey.50", borderColor: "grey.200", mb: 1.5 }}
+                elevation={0}
+                sx={{ py: 1.5, borderRadius: 2.5, bgcolor: CARD_SOFT, backgroundImage: "none", border: `1px solid ${BORDER}`, mb: 1.5 }}
               >
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: TEXT_SOFT }}>
                   Your score
                 </Typography>
 
-                <Typography variant="h4" sx={{ fontWeight: 800, ...numSx }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: TEXT, ...numSx }}>
                   {totalScore} / {questions.length}
                 </Typography>
               </Paper>
 
               {!result && (
                 <Box sx={{ mb: 1 }}>
-                  <LinearProgress sx={{ height: 5, borderRadius: 3 }} />
-                  <Typography variant="caption" color="text.secondary">
+                  <LinearProgress
+                    sx={{
+                      height: 5,
+                      borderRadius: 3,
+                      bgcolor: "rgba(255,255,255,0.15)",
+                      "& .MuiLinearProgress-bar": { bgcolor: "#fff" },
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ color: TEXT_SOFT }}>
                     Saving your score...
                   </Typography>
                 </Box>
@@ -720,9 +813,8 @@ function LevelQuiz({ level }: { level: string }) {
                   {resultBadge && (
                     <Chip
                       label={`${getBadgeIcon(resultBadge)} ${resultBadge}`}
-                      color="success"
                       variant="outlined"
-                      sx={{ fontWeight: 700 }}
+                      sx={badgeChipSx}
                     />
                   )}
 
@@ -730,13 +822,13 @@ function LevelQuiz({ level }: { level: string }) {
                     icon={<TimerOutlinedIcon />}
                     label={formatTime(result.totalSeconds)}
                     variant="outlined"
-                    sx={{ fontWeight: 700 }}
+                    sx={timeChipSx}
                   />
                 </Stack>
               )}
 
               {result?.error && (
-                <Alert severity="warning" sx={{ mb: 1, textAlign: "left" }}>
+                <Alert severity="warning" sx={darkAlertSx("warning", { mb: 1, textAlign: "left" })}>
                   {result.error}
                 </Alert>
               )}
@@ -748,14 +840,14 @@ function LevelQuiz({ level }: { level: string }) {
                     value={100}
                     size={44}
                     thickness={4}
-                    sx={{ color: "grey.300", position: "absolute" }}
+                    sx={{ color: "rgba(255,255,255,0.2)", position: "absolute" }}
                   />
                   <CircularProgress
                     variant="determinate"
                     value={(countdown / COUNTDOWN_START) * 100}
                     size={44}
                     thickness={4}
-                    sx={{ color: "#222" }}
+                    sx={{ color: "#fff" }}
                   />
                   <Box
                     sx={{
@@ -766,7 +858,7 @@ function LevelQuiz({ level }: { level: string }) {
                       justifyContent: "center",
                     }}
                   >
-                    <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{countdown}</Typography>
+                    <Typography sx={{ fontWeight: 800, fontSize: 16, color: TEXT }}>{countdown}</Typography>
                   </Box>
                 </Box>
               )}
@@ -779,7 +871,7 @@ function LevelQuiz({ level }: { level: string }) {
         >
           {guest ? (
             <>
-              <Button fullWidth variant="contained" onClick={() => router.push("/")} sx={blackButtonSx}>
+              <Button fullWidth variant="contained" onClick={() => router.push("/")} sx={mainButtonSx}>
                 Log in
               </Button>
 
@@ -796,7 +888,7 @@ function LevelQuiz({ level }: { level: string }) {
               onClick={() =>
                 result?.nextLevel ? router.push(nextLevelPath(result.nextLevel)) : router.push("/maths")
               }
-              sx={blackButtonSx}
+              sx={mainButtonSx}
             >
               {result?.nextLevel ? "Move to Next Level" : "Back to Home"}
             </Button>

@@ -26,6 +26,14 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { auth } from "@/lib/firebase";
 
+/* dark theme colours (same values as globals.css) */
+const BG = "#000";
+const CARD = "#141414";
+const CARD_SOFT = "#1f1f1f";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+
 type PracticeDrawerProps = {
   open: boolean;
   onClose: () => void;
@@ -133,8 +141,13 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
               borderRadius: "0 28px 28px 0",
               display: "flex",
               flexDirection: "column",
+              bgcolor: CARD,
+              backgroundImage: "none",
+              color: TEXT,
+              borderRight: `1px solid ${BORDER}`,
             },
           },
+          backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.75)" } },
         }}
       >
         {/* Profile header */}
@@ -147,15 +160,13 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
               height: 50,
               flexShrink: 0,
               borderRadius: "50%",
-              border: "3px solid #1a1a1a",
+              border: `3px solid ${TEXT}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Typography
-              sx={{ fontSize: 24, fontWeight: 800, color: "#1a1a1a" }}
-            >
+            <Typography sx={{ fontSize: 24, fontWeight: 800, color: TEXT }}>
               {initial}
             </Typography>
           </Box>
@@ -163,17 +174,17 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
           <Box sx={{ minWidth: 0 }}>
             <Typography
               noWrap
-              sx={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}
+              sx={{ fontSize: 18, fontWeight: 800, color: TEXT }}
             >
               {displayName}
             </Typography>
-            <Typography noWrap sx={{ fontSize: 14, color: "#6b7280" }}>
+            <Typography noWrap sx={{ fontSize: 14, color: TEXT_SOFT }}>
               {email}
             </Typography>
           </Box>
         </Box>
 
-        <Divider />
+        <Divider sx={{ borderColor: BORDER }} />
 
         {/* Menu items */}
         <List
@@ -194,6 +205,8 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
                 borderRadius: 3,
                 py: 1.2,
                 gap: 2,
+                color: TEXT,
+                "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
                 // Keep the row looking normal when it is not clickable
                 "&.Mui-disabled": { opacity: 1 },
               }}
@@ -203,8 +216,9 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
                   width: 40,
                   height: 40,
                   borderRadius: 3,
-                  bgcolor: "#e5e7eb",
-                  color: "#1f2937",
+                  bgcolor: CARD_SOFT,
+                  border: `1px solid ${BORDER}`,
+                  color: TEXT,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -218,13 +232,13 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
                   flexGrow: 1,
                   fontSize: 16,
                   fontWeight: 800,
-                  color: "#1a1a1a",
+                  color: TEXT,
                 }}
               >
                 {item.label}
               </Typography>
 
-              <ChevronRightIcon sx={{ color: "#6b7280" }} />
+              <ChevronRightIcon sx={{ color: TEXT_SOFT }} />
             </ListItemButton>
           ))}
         </List>
@@ -244,7 +258,7 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
                 fontSize: 16,
                 fontWeight: 600,
                 textTransform: "none",
-                boxShadow: "0 4px 10px rgba(232,76,61,0.3)",
+                boxShadow: "none",
                 "&:hover": { bgcolor: "#d63f31" },
               }}
             >
@@ -274,17 +288,40 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
       <Dialog
         open={logoutDialogOpen}
         onClose={handleLogoutCancel}
-        slotProps={{ paper: { sx: { borderRadius: "24px", p: 1 } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: CARD,
+              backgroundImage: "none",
+              color: TEXT,
+              border: `1px solid ${BORDER}`,
+              borderRadius: "24px",
+              p: 1,
+            },
+          },
+          backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.75)" } },
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>Logout Confirmation</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: TEXT }}>
+          Logout Confirmation
+        </DialogTitle>
 
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ color: TEXT_SOFT }}>
             Are you sure you want to logout?
           </DialogContentText>
 
           {logoutError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mt: 2,
+                bgcolor: "rgba(255,107,107,0.12)",
+                color: "#ff8a8a",
+                border: "1px solid rgba(255,138,138,0.2)",
+                "& .MuiAlert-icon": { color: "#ff8a8a" },
+              }}
+            >
               {logoutError}
             </Alert>
           )}
@@ -295,9 +332,10 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
             onClick={handleLogoutCancel}
             disabled={loggingOut}
             sx={{
-              color: "#1a1a1a",
+              color: TEXT_SOFT,
               fontWeight: 700,
               textTransform: "none",
+              "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
             }}
           >
             Cancel
@@ -322,6 +360,10 @@ export default function PracticeDrawer({ open, onClose }: PracticeDrawerProps) {
               borderRadius: "12px",
               boxShadow: "none",
               "&:hover": { bgcolor: "#d63f31", boxShadow: "none" },
+              "&.Mui-disabled": {
+                bgcolor: "rgba(232,76,61,0.4)",
+                color: "rgba(255,255,255,0.6)",
+              },
             }}
           >
             {loggingOut ? "Logging out..." : "Logout"}
