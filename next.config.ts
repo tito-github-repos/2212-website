@@ -20,7 +20,8 @@ const csp = `
     https://www.google.com
     https://challenges.cloudflare.com
     https://apis.google.com
-    https://www.gstatic.com;
+    https://www.gstatic.com
+    ;
 
   style-src
     'self'
@@ -48,7 +49,8 @@ const csp = `
     https://maps.googleapis.com
     https://maps.gstatic.com
     https://challenges.cloudflare.com
-    https://*.googleapis.com;
+    https://*.googleapis.com
+    wss://api.deepgram.com;
 
   frame-src
     'self'
