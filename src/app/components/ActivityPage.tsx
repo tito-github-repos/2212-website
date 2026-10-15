@@ -28,6 +28,14 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { auth, db } from "@/lib/firebase";
 
+/* dark theme colours (same values as globals.css) */
+const BG = "#000";
+const CARD = "#141414";
+const CARD_SOFT = "#1f1f1f";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+
 type ActivityRow = {
   levelId: string;
   categoryName: string;
@@ -192,15 +200,15 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
         component="main"
         sx={{
           minHeight: "100vh",
-          bgcolor: "white",
+          bgcolor: BG,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
         }}
       >
-        <CircularProgress size={24} color="inherit" />
-        <Typography sx={{ fontWeight: 700, color: "grey.600" }}>
+        <CircularProgress size={24} sx={{ color: TEXT }} />
+        <Typography sx={{ fontWeight: 700, color: TEXT_SOFT }}>
           Loading...
         </Typography>
       </Box>
@@ -212,7 +220,8 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
       component="main"
       sx={{
         minHeight: "100vh",
-        bgcolor: "white",
+        bgcolor: BG,
+        color: TEXT,
         px: { xs: 1.5, sm: 2.5, md: 4 },
         py: { xs: 2, md: 4 },
       }}
@@ -237,14 +246,18 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
           <IconButton
             onClick={handleBack}
             aria-label="Back"
-            sx={{ position: "absolute", left: 0 }}
+            sx={{ position: "absolute", left: 0, color: TEXT }}
           >
             <ArrowBackIcon />
           </IconButton>
 
           <Typography
             variant="h5"
-            sx={{ fontWeight: 900, fontSize: { xs: "1.25rem", md: "1.75rem" } }}
+            sx={{
+              fontWeight: 900,
+              color: TEXT,
+              fontSize: { xs: "1.25rem", md: "1.75rem" },
+            }}
           >
             Activity
           </Typography>
@@ -253,8 +266,14 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
         {/* Table */}
         <TableContainer
           component={Paper}
-          elevation={2}
-          sx={{ borderRadius: "16px" }}
+          elevation={0}
+          sx={{
+            borderRadius: "16px",
+            bgcolor: CARD,
+            backgroundImage: "none",
+            color: TEXT,
+            border: `1px solid ${BORDER}`,
+          }}
         >
           <Table
             sx={{
@@ -264,11 +283,13 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
                 py: { xs: 1.5, md: 2.5 },
                 fontSize: { xs: "0.75rem", sm: "0.9rem", md: "1.05rem" },
                 wordBreak: "break-word",
+                color: TEXT,
+                borderBottom: `1px solid ${BORDER}`,
               },
             }}
           >
             <TableHead>
-              <TableRow>
+              <TableRow sx={{ bgcolor: CARD_SOFT }}>
                 <TableCell sx={{ fontWeight: 800, width: "34%" }}>
                   Category
                 </TableCell>
@@ -296,7 +317,7 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
                   <TableCell
                     colSpan={4}
                     align="center"
-                    sx={{ py: 5, color: "text.secondary", border: 0 }}
+                    sx={{ py: 5, color: TEXT_SOFT, border: 0 }}
                   >
                     {loggedIn
                       ? "No activity yet"
@@ -318,13 +339,12 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
 
                       <TableCell>
                         <Typography
-                          sx={{ fontWeight: 800, fontSize: "inherit" }}
+                          sx={{ fontWeight: 800, fontSize: "inherit", color: TEXT }}
                         >
                           {day}
                         </Typography>
                         <Typography
-                          color="text.secondary"
-                          sx={{ fontSize: "0.85em" }}
+                          sx={{ fontSize: "0.85em", color: TEXT_SOFT }}
                         >
                           {time}
                         </Typography>

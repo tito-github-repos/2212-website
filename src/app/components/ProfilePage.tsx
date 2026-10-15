@@ -47,11 +47,19 @@ import {
   type FieldConfig,
 } from "./profile/ProfileFields";
 
+/* dark theme colours (same values as globals.css) */
+const BG = "#000";
+const CARD = "#141414";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+const DANGER = "#ff6b6b";
+
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <Typography
       component="h2"
-      sx={{ fontSize: 22, fontWeight: 900, color: "#1a1a1a", mt: 3.5, mb: 2 }}
+      sx={{ fontSize: 22, fontWeight: 900, color: TEXT, mt: 3.5, mb: 2 }}
     >
       {children}
     </Typography>
@@ -219,15 +227,15 @@ export default function ProfilePage() {
         component="main"
         sx={{
           minHeight: "100vh",
-          bgcolor: "#f8f6f6",
+          bgcolor: BG,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
         }}
       >
-        <CircularProgress size={24} color="inherit" />
-        <Typography sx={{ fontWeight: 700, color: "grey.600" }}>
+        <CircularProgress size={24} sx={{ color: TEXT }} />
+        <Typography sx={{ fontWeight: 700, color: TEXT_SOFT }}>
           Loading...
         </Typography>
       </Box>
@@ -240,7 +248,7 @@ export default function ProfilePage() {
         component="main"
         sx={{
           minHeight: "100vh",
-          bgcolor: "#f8f6f6",
+          bgcolor: BG,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -250,7 +258,7 @@ export default function ProfilePage() {
           textAlign: "center",
         }}
       >
-        <Typography sx={{ fontWeight: 700, color: "grey.700" }}>
+        <Typography sx={{ fontWeight: 700, color: TEXT_SOFT }}>
           Please login to see your profile
         </Typography>
         <Button
@@ -259,11 +267,11 @@ export default function ProfilePage() {
             height: 48,
             px: 4,
             borderRadius: "24px",
-            bgcolor: "#1a1a1a",
-            color: "#fff",
+            bgcolor: "#fff",
+            color: "#000",
             fontWeight: 700,
             textTransform: "none",
-            "&:hover": { bgcolor: "#000" },
+            "&:hover": { bgcolor: "#e5e5e5" },
           }}
         >
           Login
@@ -293,14 +301,17 @@ export default function ProfilePage() {
     ));
 
   return (
-    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "#f8f6f6", pb: 6 }}>
+    <Box
+      component="main"
+      sx={{ minHeight: "100vh", bgcolor: BG, color: TEXT, pb: 6 }}
+    >
       {/* Top bar */}
       <Box
         sx={{
           position: "sticky",
           top: 0,
           zIndex: 10,
-          bgcolor: "#f8f6f6",
+          bgcolor: BG,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -311,12 +322,12 @@ export default function ProfilePage() {
         <IconButton
           onClick={() => router.push("/maths")}
           aria-label="Back"
-          sx={{ position: "absolute", left: 12 }}
+          sx={{ position: "absolute", left: 12, color: TEXT }}
         >
           <ArrowBackIcon />
         </IconButton>
 
-        <Typography sx={{ fontSize: 24, fontWeight: 900, color: "#1a1a1a" }}>
+        <Typography sx={{ fontSize: 24, fontWeight: 900, color: TEXT }}>
           My Profile
         </Typography>
 
@@ -325,7 +336,12 @@ export default function ProfilePage() {
             onClick={cancelEdit}
             disabled={saving}
             aria-label="Cancel editing"
-            sx={{ position: "absolute", right: 12 }}
+            sx={{
+              position: "absolute",
+              right: 12,
+              color: TEXT,
+              "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
+            }}
           >
             <CloseIcon />
           </IconButton>
@@ -333,7 +349,7 @@ export default function ProfilePage() {
           <IconButton
             onClick={startEdit}
             aria-label="Edit profile"
-            sx={{ position: "absolute", right: 12 }}
+            sx={{ position: "absolute", right: 12, color: TEXT }}
           >
             <EditIcon />
           </IconButton>
@@ -341,21 +357,20 @@ export default function ProfilePage() {
       </Box>
 
       <Box sx={{ maxWidth: 1000, mx: "auto", px: 2.5 }}>
-        {/* Avatar */}
+        {/* Avatar: white circle with black letter, so it stands out on black */}
         <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
           <Box
             sx={{
               width: 110,
               height: 110,
               borderRadius: "50%",
-              background: "linear-gradient(145deg, #1a1a1a, #333333)",
-              boxShadow: "0 14px 24px rgba(0,0,0,0.25)",
+              bgcolor: "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Typography sx={{ fontSize: 56, fontWeight: 900, color: "#fff" }}>
+            <Typography sx={{ fontSize: 56, fontWeight: 900, color: "#000" }}>
               {initial}
             </Typography>
           </Box>
@@ -364,9 +379,9 @@ export default function ProfilePage() {
         {/* One single card. Two columns inside on wide screens, one on phones */}
         <Box
           sx={{
-            bgcolor: "#fff",
+            bgcolor: CARD,
+            border: `1px solid ${BORDER}`,
             borderRadius: "32px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
             px: { xs: 3, md: 5 },
             pt: 0.5,
             pb: 4,
@@ -429,14 +444,16 @@ export default function ProfilePage() {
               sx={{
                 height: 58,
                 borderRadius: "20px",
-                bgcolor: "#1a1a1a",
-                color: "#fff",
+                bgcolor: "#fff",
+                color: "#000",
                 fontSize: 17,
                 fontWeight: 800,
                 textTransform: "none",
-                boxShadow: "0 10px 20px rgba(0,0,0,0.25)",
-                "&:hover": { bgcolor: "#000" },
-                "&.Mui-disabled": { bgcolor: "#4b5563", color: "#fff" },
+                "&:hover": { bgcolor: "#e5e5e5" },
+                "&.Mui-disabled": {
+                  bgcolor: "rgba(255,255,255,0.25)",
+                  color: "rgba(255,255,255,0.5)",
+                },
               }}
             >
               {saving ? "Saving..." : "Save Changes"}
@@ -447,11 +464,11 @@ export default function ProfilePage() {
                 onClick={openDeleteDialog}
                 startIcon={<DeleteIcon />}
                 sx={{
-                  color: "#e84c3d",
+                  color: DANGER,
                   fontSize: 18,
                   fontWeight: 800,
                   textTransform: "none",
-                  "&:hover": { bgcolor: "rgba(232,76,61,0.08)" },
+                  "&:hover": { bgcolor: "rgba(255,107,107,0.1)" },
                 }}
               >
                 Delete Account
@@ -465,17 +482,40 @@ export default function ProfilePage() {
       <Dialog
         open={deleteOpen}
         onClose={closeDeleteDialog}
-        slotProps={{ paper: { sx: { borderRadius: "24px", p: 1 } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: CARD,
+              backgroundImage: "none",
+              color: TEXT,
+              border: `1px solid ${BORDER}`,
+              borderRadius: "24px",
+              p: 1,
+            },
+          },
+          backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.75)" } },
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>Delete Account</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: TEXT }}>
+          Delete Account
+        </DialogTitle>
 
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ color: TEXT_SOFT }}>
             Are you sure you want to delete your account?
           </DialogContentText>
 
           {deleteError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mt: 2,
+                bgcolor: "rgba(255,107,107,0.12)",
+                color: "#ff8a8a",
+                border: "1px solid rgba(255,138,138,0.2)",
+                "& .MuiAlert-icon": { color: "#ff8a8a" },
+              }}
+            >
               {deleteError}
             </Alert>
           )}
@@ -486,9 +526,10 @@ export default function ProfilePage() {
             onClick={closeDeleteDialog}
             disabled={deleting}
             sx={{
-              color: "#1a1a1a",
+              color: TEXT_SOFT,
               fontWeight: 700,
               textTransform: "none",
+              "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
             }}
           >
             Cancel
@@ -509,6 +550,10 @@ export default function ProfilePage() {
               borderRadius: "12px",
               boxShadow: "none",
               "&:hover": { bgcolor: "#d63f31", boxShadow: "none" },
+              "&.Mui-disabled": {
+                bgcolor: "rgba(232,76,61,0.4)",
+                color: "rgba(255,255,255,0.6)",
+              },
             }}
           >
             {deleting ? "Deleting..." : "Delete"}

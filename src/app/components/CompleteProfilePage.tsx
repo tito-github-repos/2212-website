@@ -35,6 +35,11 @@ import {
   type FieldConfig,
 } from "./profile/ProfileFields";
 
+/* dark theme colours (same values as globals.css) */
+const BG = "#000";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+
 // Left column: Name, Email, DOB, Parent Name, Mobile
 const LEFT_FIELDS = PERSONAL_FIELDS;
 
@@ -173,15 +178,15 @@ export default function CompleteProfilePage() {
         component="main"
         sx={{
           minHeight: "100vh",
-          bgcolor: "#fff",
+          bgcolor: BG,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
         }}
       >
-        <CircularProgress size={24} color="inherit" />
-        <Typography sx={{ fontWeight: 700, color: "grey.600" }}>
+        <CircularProgress size={24} sx={{ color: TEXT }} />
+        <Typography sx={{ fontWeight: 700, color: TEXT_SOFT }}>
           Loading...
         </Typography>
       </Box>
@@ -189,13 +194,17 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "#fff", pb: 6 }}>
+    <Box
+      component="main"
+      sx={{ minHeight: "100vh", bgcolor: BG, color: TEXT, pb: 6 }}
+    >
       {/* Back arrow */}
       <Box sx={{ px: 1.5, pt: 1.5 }}>
         <IconButton
           onClick={handleBack}
           disabled={submitting}
           aria-label="Back"
+          sx={{ color: TEXT, "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
         >
           <ArrowBackIcon />
         </IconButton>
@@ -206,11 +215,11 @@ export default function CompleteProfilePage() {
         <Box sx={{ textAlign: "center", mt: 3, mb: 4 }}>
           <Typography
             component="h1"
-            sx={{ fontSize: 32, fontWeight: 900, color: "#000" }}
+            sx={{ fontSize: 32, fontWeight: 900, color: TEXT }}
           >
             Complete Your Profile
           </Typography>
-          <Typography sx={{ mt: 1, fontSize: 16, color: "#6b7280" }}>
+          <Typography sx={{ mt: 1, fontSize: 16, color: TEXT_SOFT }}>
             We need a few more details
           </Typography>
         </Box>
@@ -253,12 +262,21 @@ export default function CompleteProfilePage() {
 
         <Box sx={{ maxWidth: 420, mx: "auto" }}>
           {submitError && (
-            <Alert severity="error" sx={{ mt: 3 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mt: 3,
+                bgcolor: "rgba(255,107,107,0.12)",
+                color: "#ff8a8a",
+                border: "1px solid rgba(255,138,138,0.2)",
+                "& .MuiAlert-icon": { color: "#ff8a8a" },
+              }}
+            >
               {submitError}
             </Alert>
           )}
 
-          {/* Submit */}
+          {/* Submit: white button with black text */}
           <Button
             onClick={handleSubmit}
             disabled={submitting}
@@ -270,14 +288,16 @@ export default function CompleteProfilePage() {
               mt: 4,
               height: 58,
               borderRadius: "20px",
-              bgcolor: "#1a1a1a",
-              color: "#fff",
+              bgcolor: "#fff",
+              color: "#000",
               fontSize: 18,
               fontWeight: 800,
               textTransform: "none",
-              boxShadow: "0 10px 20px rgba(0,0,0,0.25)",
-              "&:hover": { bgcolor: "#000" },
-              "&.Mui-disabled": { bgcolor: "#4b5563", color: "#fff" },
+              "&:hover": { bgcolor: "#e5e5e5" },
+              "&.Mui-disabled": {
+                bgcolor: "rgba(255,255,255,0.25)",
+                color: "rgba(255,255,255,0.5)",
+              },
             }}
           >
             {submitting ? "Registering..." : "Complete Registration"}
@@ -289,7 +309,7 @@ export default function CompleteProfilePage() {
               textAlign: "center",
               fontSize: 15,
               fontWeight: 700,
-              color: "#1a1a1a",
+              color: TEXT_SOFT,
             }}
           >
             Register with free subscription
