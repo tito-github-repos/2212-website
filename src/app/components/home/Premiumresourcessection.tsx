@@ -842,7 +842,7 @@ const downloadBanner = {
   title: "Worksheets + Web App",
   tagline: "Do daily. Drill daily.",
   price: "₹ 333",
-  priceSuffix: "/ Year",
+  priceSuffix: "/ month",
   priceNote: "Worksheet download + web application, both included",
   cta: "Get Worksheets & App",
   groups: [
