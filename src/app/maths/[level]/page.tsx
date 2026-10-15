@@ -34,6 +34,7 @@ import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 import { formatTime, getBadgeIcon, getResultInfo } from "../../../lib/quizRules";
 import { type LevelInfo } from "../../../lib/questionService";
 import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
+import { useDeepgramVoiceAnswer, type VoiceTiming } from "../../../lib/useDeepgramVoiceAnswer";
 import {
   useQuestionController,
   type SubmitResult,
@@ -52,6 +53,12 @@ const TEXT = "#fff";
 const TEXT_SOFT = "rgba(255,255,255,0.8)";
 const DANGER = "#ff6b6b";
 const SUCCESS = "#4ade80";
+
+// NEXT_PUBLIC_VOICE_ENGINE=deepgram in .env.local turns Deepgram on; remove it to use the old voice
+const USE_DEEPGRAM = process.env.NEXT_PUBLIC_VOICE_ENGINE === "deepgram";
+
+// timing panel is hidden for students; set NEXT_PUBLIC_VOICE_DEBUG=true in .env.local to show it
+const SHOW_VOICE_DEBUG = process.env.NEXT_PUBLIC_VOICE_DEBUG === "true";
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -143,6 +150,13 @@ const timeChipSx = {
   "& .MuiChip-icon": { color: TEXT },
 };
 
+function medianOf(values: number[]) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
 function nextLevelPath(level: LevelInfo) {
   return `/maths/${level.levelId}?title=${encodeURIComponent(level.categoryName)}`;
 }
@@ -203,20 +217,58 @@ function LevelQuiz({ level }: { level: string }) {
 
   const finishedRef = useRef(false);
 
+    // one answer per question: blocks a second hand-in before React has moved to the next question
+  const answeredForRef = useRef(-1);
+  const indexRef = useRef(currentQuestionIndex);
+  indexRef.current = currentQuestionIndex;
+  // Deepgram test: how long the screen takes to show the next question after an answer is handed in
+  const answerAtRef = useRef<number | null>(null);
+  const [switchMs, setSwitchMs] = useState<number[]>([]);
+
+
   const title = titleFromUrl || questions[0]?.category || "Addition";
 
   /* ------------------------------- voice ---------------------------------- */
+  // USE_DEEPGRAM never changes while the app runs, so the same hook is used on every render
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const useVoice: typeof useDeepgramVoiceAnswer = USE_DEEPGRAM
+    ? useDeepgramVoiceAnswer
+    : (useVoiceAnswer as unknown as typeof useDeepgramVoiceAnswer);
 
-  const { listening, heardText, micMessage, micReady, startListening, stopListening, clearHeard } =
-    useVoiceAnswer({
-      onAnswer: (text) => handleAnswer(text),
-      getCorrectAnswer: () => controller.getCorrectAnswer(),
-      canListen: () => !finishedRef.current,
-    });
+  const voice = useVoice({
+    onAnswer: (text) => handleAnswer(text),
+    getCorrectAnswer: () => controller.getCorrectAnswer(),
+    canListen: () => !finishedRef.current,
+  });
+
+  const { listening, heardText, micMessage, micReady, startListening, stopListening, clearHeard } = voice;
+
+  // only the Deepgram hook measures timing
+  const timings = voice.timings as VoiceTiming[] | undefined;
+  const voiceStats = voice.stats;
+
+  // keep the timings for reference even though the panel is hidden
+  useEffect(() => {
+    if (!USE_DEEPGRAM || !timings?.length) return;
+
+    try {
+      localStorage.setItem(
+        `voiceTimings:${level}`,
+        JSON.stringify({ savedAt: new Date().toISOString(), level, voiceStats, switchMs, timings })
+      );
+    } catch {
+      /* storage full or blocked: ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timings, switchMs]);
 
   function handleAnswer(text: string) {
     if (finishedRef.current || exitDialogRef.current) return;
+       // already answered this question, waiting for the next one to appear
+    if (answeredForRef.current === indexRef.current) return;
+    answeredForRef.current = indexRef.current;
 
+    answerAtRef.current = performance.now();
     if (controller.isLastQuestion()) {
       void finishQuiz(text);
       return;
@@ -313,6 +365,15 @@ function LevelQuiz({ level }: { level: string }) {
 
     router.push("/maths");
   }
+
+  // measures answer handed in -> next question on screen
+  useEffect(() => {
+    if (answerAtRef.current === null) return;
+
+    const ms = Math.round(performance.now() - answerAtRef.current);
+    answerAtRef.current = null;
+    setSwitchMs((old) => [...old.slice(-99), ms]);
+  }, [currentQuestionIndex]);
 
   /* ------------------------------ 1 minute mode ---------------------------- */
 
@@ -718,6 +779,36 @@ function LevelQuiz({ level }: { level: string }) {
             </Avatar>
           </CardActionArea>
         </Card>
+
+      {/* Deepgram test only: how fast the answers come back */}
+        {USE_DEEPGRAM && SHOW_VOICE_DEBUG && voiceStats && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}>
+              You stop speaking to answer handed in: last {voiceStats.lastFinalMs ?? "-"} ms, median{" "}
+              {voiceStats.medianFinalMs ?? "-"} ms
+            </Typography>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}>
+              Answer handed in to next question on screen: last {switchMs[switchMs.length - 1] ?? "-"} ms, median{" "}
+              {medianOf(switchMs) ?? "-"} ms
+            </Typography>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}>
+              First words {voiceStats.medianFirstTextMs ?? "-"} ms, connect {voiceStats.connectMs ?? "-"} ms,{" "}
+              {voiceStats.count} heard ({voiceStats.fastCount} fast, {voiceStats.safeCount} safe, {voiceStats.finalCount} by Deepgram signal)
+            </Typography>
+
+            <Button
+              size="small"
+              sx={{ textTransform: "none", fontWeight: 700, color: "#000", minWidth: 0, px: 0 }}
+              onClick={() =>
+                navigator.clipboard.writeText(JSON.stringify({ voiceStats, switchMs, timings }, null, 2))
+              }
+            >
+              Copy timings
+            </Button>
+          </Box>
+        )}
 
         {micMessage && (
           <Alert severity="error" variant="outlined" sx={darkAlertSx("error", { mt: 2 })}>
