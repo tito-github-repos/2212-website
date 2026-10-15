@@ -14,6 +14,9 @@ import {
 import {
   Box,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Paper,
   Table,
@@ -21,10 +24,14 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CloseIcon from "@mui/icons-material/Close";
+import HistoryIcon from "@mui/icons-material/History";
 
 import { auth, db } from "@/lib/firebase";
 
@@ -36,6 +43,16 @@ const BORDER = "rgba(255,255,255,0.15)";
 const TEXT = "#fff";
 const TEXT_SOFT = "rgba(255,255,255,0.8)";
 
+const HISTORY_PAGE_SIZE = 5;
+
+type AttemptHistoryItem = {
+  attemptNo: number;
+  score: number;
+  totalNoQuestions: number;
+  totalSeconds: number;
+  date: Date | null;
+};
+
 type ActivityRow = {
   levelId: string;
   categoryName: string;
@@ -43,6 +60,8 @@ type ActivityRow = {
   totalNoQuestions: number;
   seconds: number;
   date: Date | null;
+  attemptNo: number;
+  history: AttemptHistoryItem[];
 };
 
 type ActivityPageProps = {
@@ -87,13 +106,52 @@ async function getStudentId(uid: string, email: string | null) {
   return uid;
 }
 
+// every earlier completed attempt for one level, newest first
+async function fetchAttemptHistory(
+  studentId: string,
+  level: string,
+): Promise<AttemptHistoryItem[]> {
+  try {
+    const snapshot = await getDocs(
+      collection(
+        db,
+        "StudentScoreSheet",
+        studentId,
+        "Maths",
+        "QuestionCategory",
+        level,
+        "scoreData",
+        "attemptHistory",
+      ),
+    );
+
+    const items: AttemptHistoryItem[] = snapshot.docs.map((historyDoc) => {
+      const data = historyDoc.data();
+      return {
+        attemptNo: Number(data.attemptNo ?? 0),
+        score: Number(data.score ?? 0),
+        totalNoQuestions: Number(data.totalNoQuestions ?? 0),
+        totalSeconds: Number(data.totalSeconds ?? 0),
+        date: data.attemptEndTime?.toDate?.() ?? null,
+      };
+    });
+
+    items.sort((a, b) => b.attemptNo - a.attemptNo);
+
+    return items;
+  } catch (error) {
+    console.log("Error getting attempt history:", error);
+    return [];
+  }
+}
+
 async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
   // 1. all categories (levels)
   const levelSnapshot = await getDocs(
     collection(db, "QuestionBank", "Maths", "QuestionCategory"),
   );
 
-  // 2. this student's score for every level, in parallel
+  // 2. this student's score (+ attempt history) for every level, in parallel
   const results = await Promise.all(
     levelSnapshot.docs.map(async (item) => {
       const categories = item.data().categories || [];
@@ -117,6 +175,8 @@ async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
         const data = scoreSnap.data();
         if (data.status !== "Completed") return null;
 
+        const history = await fetchAttemptHistory(studentId, item.id);
+
         const row: ActivityRow = {
           levelId: item.id,
           categoryName: data.categoryName || categoryName,
@@ -127,6 +187,8 @@ async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
             data.latestAttemptEndTime?.toDate?.() ??
             data.updatedAt?.toDate?.() ??
             null,
+          attemptNo: Number(data.latestAttemptNo ?? 1),
+          history,
         };
 
         return row;
@@ -145,12 +207,238 @@ async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
   return list;
 }
 
+/* ---------- History modal (5 rows per page + pagination) ---------- */
+
+function HistoryDialog({
+  row,
+  onClose,
+}: {
+  row: ActivityRow | null;
+  onClose: () => void;
+}) {
+  const [page, setPage] = useState(0);
+  const [prevLevelId, setPrevLevelId] = useState(row?.levelId);
+
+  // always start from the first page when a different row is opened
+  // (state is adjusted during render, so no effect is needed)
+  if (row?.levelId !== prevLevelId) {
+    setPrevLevelId(row?.levelId);
+    setPage(0);
+  }
+
+  const history = row?.history ?? [];
+  const pageItems = history.slice(
+    page * HISTORY_PAGE_SIZE,
+    page * HISTORY_PAGE_SIZE + HISTORY_PAGE_SIZE,
+  );
+
+  const headCellSx = {
+    color: TEXT_SOFT,
+    fontWeight: 700,
+    borderBottom: `1px solid ${BORDER}`,
+  };
+
+  return (
+    <Dialog
+      open={Boolean(row)}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: CARD,
+            backgroundImage: "none",
+            color: TEXT,
+            border: `1px solid ${BORDER}`,
+            borderRadius: "16px",
+          },
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontWeight: 900,
+          pr: 1,
+        }}
+      >
+        <Box component="span">
+          History
+          {row && (
+            <Typography
+              component="span"
+              sx={{ ml: 1, fontSize: "0.9rem", color: TEXT_SOFT }}
+            >
+              {row.categoryName}
+            </Typography>
+          )}
+        </Box>
+
+        <IconButton onClick={onClose} aria-label="Close" sx={{ color: TEXT }}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ px: { xs: 1, sm: 2 }, pb: 2 }}>
+        <TableContainer
+          sx={{ bgcolor: CARD_SOFT, borderRadius: "12px" }}
+        >
+          <Table
+            size="small"
+            sx={{
+              tableLayout: "fixed",
+              "& .MuiTableCell-root": {
+                color: TEXT,
+                borderBottom: `1px solid ${BORDER}`,
+                py: 1.5,
+              },
+              "& tbody tr:last-of-type .MuiTableCell-root": { border: 0 },
+            }}
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ ...headCellSx, width: "18%" }}>Attempt</TableCell>
+                <TableCell sx={{ ...headCellSx, width: "34%" }}>
+                  Date & Time
+                </TableCell>
+                <TableCell align="center" sx={{ ...headCellSx, width: "24%" }}>
+                  Time (Sec)
+                </TableCell>
+                <TableCell align="right" sx={{ ...headCellSx, width: "24%" }}>
+                  Score
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {pageItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    align="center"
+                    sx={{ py: 4, color: TEXT_SOFT }}
+                  >
+                    No previous attempts
+                  </TableCell>
+                </TableRow>
+              ) : (
+                pageItems.map((attempt, index) => {
+                  const { day, time } = formatDate(attempt.date);
+                  return (
+                    <TableRow key={`${attempt.attemptNo}-${index}`}>
+                      <TableCell sx={{ fontWeight: 800 }}>
+                        {attempt.attemptNo}
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 700, fontSize: "inherit" }}>
+                          {day}
+                        </Typography>
+                        <Typography
+                          sx={{ fontSize: "0.85em", color: TEXT_SOFT }}
+                        >
+                          {time}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">{attempt.totalSeconds}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800 }}>
+                        {attempt.score}/{attempt.totalNoQuestions}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {history.length > HISTORY_PAGE_SIZE && (
+          <TablePagination
+            component="div"
+            count={history.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={HISTORY_PAGE_SIZE}
+            rowsPerPageOptions={[]}
+            sx={{
+              color: TEXT_SOFT,
+              borderBottom: 0,
+              "& .MuiTablePagination-actions .MuiIconButton-root": {
+                color: TEXT,
+              },
+              "& .MuiTablePagination-actions .Mui-disabled": {
+                color: "rgba(255,255,255,0.3)",
+              },
+            }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------- Main table row ---------- */
+
+function ActivityRowItem({
+  row,
+  onOpenHistory,
+}: {
+  row: ActivityRow;
+  onOpenHistory: (row: ActivityRow) => void;
+}) {
+  const { day, time } = formatDate(row.date);
+  const hasHistory = row.history.length > 0;
+
+  return (
+    <TableRow>
+      <TableCell sx={{ fontWeight: 800 }}>{row.categoryName}</TableCell>
+
+      <TableCell>
+        <Typography sx={{ fontWeight: 800, fontSize: "inherit", color: TEXT }}>
+          {day}
+        </Typography>
+        <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+          {time}
+        </Typography>
+      </TableCell>
+
+      <TableCell align="center" sx={{ fontWeight: 800 }}>
+        {row.seconds}
+      </TableCell>
+
+      <TableCell align="center" sx={{ fontWeight: 800 }}>
+        {row.score}/{row.totalNoQuestions}
+      </TableCell>
+
+      <TableCell align="center">
+        {hasHistory ? (
+          <Tooltip title="View previous attempts">
+            <IconButton
+              size="small"
+              onClick={() => onOpenHistory(row)}
+              aria-label="Show attempt history"
+              sx={{ color: TEXT }}
+            >
+              <HistoryIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Typography sx={{ color: TEXT_SOFT }}>-</Typography>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function ActivityPage({ onBack }: ActivityPageProps) {
   const router = useRouter();
 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(true);
+  const [historyRow, setHistoryRow] = useState<ActivityRow | null>(null);
 
   const handleBack = () => {
     if (onBack) {
@@ -290,23 +578,29 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
           >
             <TableHead>
               <TableRow sx={{ bgcolor: CARD_SOFT }}>
-                <TableCell sx={{ fontWeight: 800, width: "34%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "28%" }}>
                   Category
                 </TableCell>
-                <TableCell sx={{ fontWeight: 800, width: "28%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "26%" }}>
                   Date & Time
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "20%" }}
+                  sx={{ fontWeight: 800, width: "16%" }}
                 >
                   Time (Sec)
                 </TableCell>
                 <TableCell
-                  align="right"
-                  sx={{ fontWeight: 800, width: "18%" }}
+                  align="center"
+                  sx={{ fontWeight: 800, width: "14%" }}
                 >
                   Score
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ fontWeight: 800, width: "16%" }}
+                >
+                  History
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -315,7 +609,7 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     align="center"
                     sx={{ py: 5, color: TEXT_SOFT, border: 0 }}
                   >
@@ -325,46 +619,20 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row) => {
-                  const { day, time } = formatDate(row.date);
-
-                  return (
-                    <TableRow
-                      key={row.levelId}
-                      sx={{ "&:last-child td": { border: 0 } }}
-                    >
-                      <TableCell sx={{ fontWeight: 800 }}>
-                        {row.categoryName}
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography
-                          sx={{ fontWeight: 800, fontSize: "inherit", color: TEXT }}
-                        >
-                          {day}
-                        </Typography>
-                        <Typography
-                          sx={{ fontSize: "0.85em", color: TEXT_SOFT }}
-                        >
-                          {time}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center" sx={{ fontWeight: 800 }}>
-                        {row.seconds}
-                      </TableCell>
-
-                      <TableCell align="right" sx={{ fontWeight: 800 }}>
-                        {row.score}/{row.totalNoQuestions}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                rows.map((row) => (
+                  <ActivityRowItem
+                    key={row.levelId}
+                    row={row}
+                    onOpenHistory={setHistoryRow}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
         </TableContainer>
       </Box>
+
+      <HistoryDialog row={historyRow} onClose={() => setHistoryRow(null)} />
     </Box>
   );
 }
