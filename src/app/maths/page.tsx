@@ -1,4 +1,3 @@
-//src\app\maths\page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,7 +8,6 @@ import CardActionArea from "@mui/material/CardActionArea";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -24,6 +22,15 @@ import {
 import { getBadgeIcon, getResultInfo } from "../../lib/quizRules";
 
 const SUBJECT = "Maths";
+
+// dark theme colours (same values as the css variables in globals.css)
+const BG = "#000";
+const CARD = "#141414";
+const BORDER = "rgba(255,255,255,0.15)";
+const TEXT = "#fff";
+const TEXT_SOFT = "rgba(255,255,255,0.8)";
+const DANGER = "#ff6b6b";
+const SUCCESS = "#4ade80";
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -40,10 +47,25 @@ const SPECIFIC_LINES = [
   "If you are getting 57 and less than that, you can repeat the test.",
 ];
 
-function InfoCard({ title, lines }: { title: string; lines: string[] }) {
+// white text directly on the black background (no white card)
+function InfoSection({
+  title,
+  lines,
+  withDivider = false,
+}: {
+  title: string;
+  lines: string[];
+  withDivider?: boolean;
+}) {
   return (
-    <Paper sx={{ mt: 2, p: 2.5, borderRadius: "22px" }} elevation={0}>
-      <Typography variant="h6" sx={{ fontWeight: 900 }} color="text.primary">
+    <Box
+      sx={{
+        mt: 2.5,
+        pt: withDivider ? 2.5 : 0,
+        borderTop: withDivider ? `1px solid ${BORDER}` : "none",
+      }}
+    >
+      <Typography variant="h6" sx={{ fontWeight: 900, color: TEXT }}>
         {title}
       </Typography>
 
@@ -52,14 +74,13 @@ function InfoCard({ title, lines }: { title: string; lines: string[] }) {
           <Typography
             key={line}
             variant="body2"
-            sx={{ fontWeight: 600 }}
-            color="text.secondary"
+            sx={{ fontWeight: 600, color: TEXT_SOFT, fontSize: 14 }}
           >
             • {line}
           </Typography>
         ))}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 
@@ -129,15 +150,15 @@ export default function MathsPage() {
       <Box
         sx={{
           minHeight: "100vh",
-          bgcolor: "grey.100",
+          bgcolor: BG,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
         }}
       >
-        <CircularProgress size={28} sx={{ color: "#000" }} />
-        <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
+        <CircularProgress size={28} sx={{ color: TEXT }} />
+        <Typography sx={{ fontWeight: 700, color: TEXT_SOFT }}>
           Loading...
         </Typography>
       </Box>
@@ -145,19 +166,16 @@ export default function MathsPage() {
   }
 
   return (
-    <Box
-      sx={{ minHeight: "100vh", bgcolor: "grey.100", color: "text.primary" }}
-    >
+    <Box sx={{ minHeight: "100vh", bgcolor: BG, color: TEXT }}>
       {/* Header */}
       <Box
         sx={{
-          bgcolor: "#000",
-          color: "#fff",
+          bgcolor: BG,
+          color: TEXT,
           px: 2.5,
           pt: 4,
           pb: 3,
-          borderBottomLeftRadius: 28,
-          borderBottomRightRadius: 28,
+          borderBottom: `1px solid ${BORDER}`,
         }}
       >
         <Box
@@ -168,6 +186,7 @@ export default function MathsPage() {
             justifyContent: "center",
           }}
         >
+          {/* white button with black icon so it stands out on black */}
           <IconButton
             aria-label="Open Menu"
             onClick={() => setDrawerOpen(true)}
@@ -179,21 +198,19 @@ export default function MathsPage() {
               width: 48,
               height: 48,
               borderRadius: 3,
-              "&:hover": { bgcolor: "grey.200" },
+              "&:hover": { bgcolor: "grey.300" },
             }}
           >
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: TEXT }}>
             2212
           </Typography>
         </Box>
 
-        <Box sx={{ mt: 2 }}>
-          <InfoCard title="General" lines={GENERAL_LINES} />
-          <InfoCard title="Specifics" lines={SPECIFIC_LINES} />
-        </Box>
+        <InfoSection title="General" lines={GENERAL_LINES} />
+        <InfoSection title="Specifics" lines={SPECIFIC_LINES} withDivider />
       </Box>
 
       {/* Test cards */}
@@ -221,6 +238,7 @@ export default function MathsPage() {
                 ? ""
                 : String(scoreData?.latestBadge ?? "");
             const chipIcon = badge ? getBadgeIcon(badge) : info.icon;
+            const chipColor = info.status === "repeat" ? DANGER : SUCCESS;
 
             const isMultiplication =
               level.categoryName.startsWith("Multiplication");
@@ -232,35 +250,48 @@ export default function MathsPage() {
             return (
               <Card
                 key={level.levelId}
-                elevation={3}
-                sx={{ borderRadius: "22px", border: "2px solid #000" }}
+                elevation={0}
+                sx={{
+                  borderRadius: "22px",
+                  bgcolor: CARD,
+                  backgroundImage: "none",
+                  color: TEXT,
+                  border: `1px solid ${BORDER}`,
+                }}
               >
                 <CardActionArea
                   onClick={() => openTest(level.levelId, level.categoryName)}
                   sx={{
-                    minHeight: 220,
+                    minHeight: 160,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     p: 2,
+                    color: TEXT,
                   }}
                 >
                   <Box sx={{ textAlign: "center" }}>
                     {isMultiplication ? (
                       <>
-                        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 900, color: TEXT }}
+                        >
                           Multiplication
                         </Typography>
 
                         <Typography
                           variant="subtitle1"
-                          sx={{ fontWeight: 900, mt: 0.5 }}
+                          sx={{ fontWeight: 900, mt: 0.5, color: TEXT_SOFT }}
                         >
                           {secondLine}
                         </Typography>
                       </>
                     ) : (
-                      <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 900, color: TEXT }}
+                      >
                         {level.categoryName}
                       </Typography>
                     )}
@@ -268,10 +299,15 @@ export default function MathsPage() {
                     {completed && (
                       <Chip
                         label={`${chipIcon} ${score} / ${total}`}
-                        color={info.status === "repeat" ? "error" : "success"}
                         variant="outlined"
-                        size="small"
-                        sx={{ mt: 2, fontWeight: 700 }}
+                        size="medium"
+                        sx={{
+                          mt: 2,
+                          fontWeight: 700,
+                          color: chipColor,
+                          borderColor: chipColor,
+                          bgcolor: "rgba(255,255,255,0.04)",
+                        }}
                       />
                     )}
                   </Box>
