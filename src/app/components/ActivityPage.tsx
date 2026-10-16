@@ -32,6 +32,10 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import HistoryIcon from "@mui/icons-material/History";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
+import LanguageIcon from "@mui/icons-material/Language";
+import MicIcon from "@mui/icons-material/Mic";
+import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
 
 import { auth, db } from "@/lib/firebase";
 
@@ -51,6 +55,8 @@ type AttemptHistoryItem = {
   totalNoQuestions: number;
   totalSeconds: number;
   date: Date | null;
+  answerMode: AnswerMode;
+  platform: string; // "web", "mobile" or "unknown"
 };
 
 type ActivityRow = {
@@ -61,8 +67,62 @@ type ActivityRow = {
   seconds: number;
   date: Date | null;
   attemptNo: number;
+  answerMode: AnswerMode;
+  platform: string;
   history: AttemptHistoryItem[];
 };
+
+type AnswerMode = "voice" | "keyboard";
+
+// how the test was answered - its own column
+function AnswerModeCell({ answerMode }: { answerMode: AnswerMode }) {
+  return (
+    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+      <Tooltip title={answerMode === "keyboard" ? "Keyboard" : "Voice"}>
+        {answerMode === "keyboard" ? (
+          <KeyboardIcon fontSize="small" />
+        ) : (
+          <MicIcon fontSize="small" />
+        )}
+      </Tooltip>
+      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+        {answerMode === "keyboard" ? "Keyboard" : "Voice"}
+      </Typography>
+    </Box>
+  );
+}
+
+// which app it was taken on - its own column
+function PlatformCell({ platform }: { platform: string }) {
+  const isWeb = platform === "web";
+  const isMobile =
+    platform === "mobile" || platform === "android" || platform === "ios";
+
+  if (!isWeb && !isMobile) {
+    return (
+      <Tooltip title="Device not recorded">
+        <Typography component="span" sx={{ color: TEXT_SOFT }}>
+          -
+        </Typography>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+      <Tooltip title={isWeb ? "Web" : "Mobile app"}>
+        {isWeb ? (
+          <LanguageIcon fontSize="small" />
+        ) : (
+          <PhoneAndroidIcon fontSize="small" />
+        )}
+      </Tooltip>
+      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+        {isWeb ? "Web" : "Mobile"}
+      </Typography>
+    </Box>
+  );
+}
 
 type ActivityPageProps = {
   // When given, the back arrow calls this (e.g. to close a dialog)
@@ -133,6 +193,9 @@ async function fetchAttemptHistory(
         totalNoQuestions: Number(data.totalNoQuestions ?? 0),
         totalSeconds: Number(data.totalSeconds ?? 0),
         date: data.attemptEndTime?.toDate?.() ?? null,
+        // older attempts have no mode saved, they were all taken by voice
+        answerMode: data.answerMode === "keyboard" ? "keyboard" : "voice",
+        platform: String(data.platform ?? "unknown"),
       };
     });
 
@@ -188,6 +251,8 @@ async function fetchActivity(studentId: string): Promise<ActivityRow[]> {
             data.updatedAt?.toDate?.() ??
             null,
           attemptNo: Number(data.latestAttemptNo ?? 1),
+          answerMode: data.latestAnswerMode === "keyboard" ? "keyboard" : "voice",
+          platform: String(data.latestPlatform ?? "unknown"),
           history,
         };
 
@@ -284,12 +349,13 @@ function HistoryDialog({
 
       <DialogContent sx={{ px: { xs: 1, sm: 2 }, pb: 2 }}>
         <TableContainer
-          sx={{ bgcolor: CARD_SOFT, borderRadius: "12px" }}
+          sx={{ bgcolor: CARD_SOFT, borderRadius: "12px", overflowX: "auto" }}
         >
           <Table
             size="small"
             sx={{
               tableLayout: "fixed",
+              minWidth: 560,
               "& .MuiTableCell-root": {
                 color: TEXT,
                 borderBottom: `1px solid ${BORDER}`,
@@ -300,14 +366,20 @@ function HistoryDialog({
           >
             <TableHead>
               <TableRow>
-                <TableCell sx={{ ...headCellSx, width: "18%" }}>Attempt</TableCell>
-                <TableCell sx={{ ...headCellSx, width: "34%" }}>
+                <TableCell sx={{ ...headCellSx, width: "12%" }}>Attempt</TableCell>
+                <TableCell sx={{ ...headCellSx, width: "24%" }}>
                   Date & Time
                 </TableCell>
-                <TableCell align="center" sx={{ ...headCellSx, width: "24%" }}>
+                <TableCell align="center" sx={{ ...headCellSx, width: "14%" }}>
                   Time (Sec)
                 </TableCell>
-                <TableCell align="right" sx={{ ...headCellSx, width: "24%" }}>
+                <TableCell align="center" sx={{ ...headCellSx, width: "16%" }}>
+                  Answer Mode
+                </TableCell>
+                <TableCell align="center" sx={{ ...headCellSx, width: "16%" }}>
+                  Platform
+                </TableCell>
+                <TableCell align="right" sx={{ ...headCellSx, width: "18%" }}>
                   Score
                 </TableCell>
               </TableRow>
@@ -317,7 +389,7 @@ function HistoryDialog({
               {pageItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={6}
                     align="center"
                     sx={{ py: 4, color: TEXT_SOFT }}
                   >
@@ -343,6 +415,12 @@ function HistoryDialog({
                         </Typography>
                       </TableCell>
                       <TableCell align="center">{attempt.totalSeconds}</TableCell>
+                      <TableCell align="center">
+                        <AnswerModeCell answerMode={attempt.answerMode} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <PlatformCell platform={attempt.platform} />
+                      </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 800 }}>
                         {attempt.score}/{attempt.totalNoQuestions}
                       </TableCell>
@@ -410,6 +488,14 @@ function ActivityRowItem({
 
       <TableCell align="center" sx={{ fontWeight: 800 }}>
         {row.score}/{row.totalNoQuestions}
+      </TableCell>
+
+      <TableCell align="center">
+        <AnswerModeCell answerMode={row.answerMode} />
+      </TableCell>
+
+      <TableCell align="center">
+        <PlatformCell platform={row.platform} />
       </TableCell>
 
       <TableCell align="center">
@@ -561,11 +647,13 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
             backgroundImage: "none",
             color: TEXT,
             border: `1px solid ${BORDER}`,
+            overflowX: "auto",
           }}
         >
           <Table
             sx={{
               tableLayout: "fixed",
+              minWidth: 760,
               "& .MuiTableCell-root": {
                 px: { xs: 1, sm: 2, md: 3 },
                 py: { xs: 1.5, md: 2.5 },
@@ -578,27 +666,39 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
           >
             <TableHead>
               <TableRow sx={{ bgcolor: CARD_SOFT }}>
-                <TableCell sx={{ fontWeight: 800, width: "28%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "20%" }}>
                   Category
                 </TableCell>
-                <TableCell sx={{ fontWeight: 800, width: "26%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "18%" }}>
                   Date & Time
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "16%" }}
+                  sx={{ fontWeight: 800, width: "12%" }}
                 >
                   Time (Sec)
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "14%" }}
+                  sx={{ fontWeight: 800, width: "10%" }}
                 >
                   Score
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "16%" }}
+                  sx={{ fontWeight: 800, width: "14%" }}
+                >
+                  Answer Mode
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ fontWeight: 800, width: "14%" }}
+                >
+                  Platform
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ fontWeight: 800, width: "12%" }}
                 >
                   History
                 </TableCell>
@@ -609,7 +709,7 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={7}
                     align="center"
                     sx={{ py: 5, color: TEXT_SOFT, border: 0 }}
                   >

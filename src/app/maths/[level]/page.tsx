@@ -24,15 +24,20 @@ import Paper from "@mui/material/Paper";
 import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import HomeIcon from "@mui/icons-material/Home";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
 import MicIcon from "@mui/icons-material/Mic";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 import { formatTime, getBadgeIcon, getResultInfo } from "../../../lib/quizRules";
-import { type LevelInfo } from "../../../lib/questionService";
+import { areAnswersEquivalent } from "../../../lib/answerMatch";
+import { type AnswerMode, type LevelInfo } from "../../../lib/questionService";
 import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
 import { useDeepgramVoiceAnswer, type VoiceTiming } from "../../../lib/useDeepgramVoiceAnswer";
 import {
@@ -59,6 +64,13 @@ const USE_DEEPGRAM = process.env.NEXT_PUBLIC_VOICE_ENGINE === "deepgram";
 
 // timing panel is hidden for students; set NEXT_PUBLIC_VOICE_DEBUG=true in .env.local to show it
 const SHOW_VOICE_DEBUG = process.env.NEXT_PUBLIC_VOICE_DEBUG === "true";
+
+// keyboard mode: the typed answer is handed in by itself, like in voice mode
+//   the typed answer is right  -> hand it in after a short pause (the student may still be typing)
+//   the typed answer is not right -> hand it in after the student stops typing for a while
+// Enter or the Next button still hands it in at once
+const KEYBOARD_FAST_MS = 300;
+const KEYBOARD_SLOW_MS = 1500;
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -150,6 +162,13 @@ const timeChipSx = {
   "& .MuiChip-icon": { color: TEXT },
 };
 
+// the time now, for the Deepgram timing only. It lives outside the component because
+// handleAnswer is handed to the voice hook, and the React checker would otherwise treat a
+// direct performance.now() call there as "impure code during render".
+function nowMs() {
+  return performance.now();
+}
+
 function medianOf(values: number[]) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -202,6 +221,12 @@ function LevelQuiz({ level }: { level: string }) {
   // true after "Retry Test" is pressed on the score page
   const [retrying, setRetrying] = useState(false);
 
+  // how the student answers: speaking or typing (chosen on the instructions page)
+  const [answerMode, setAnswerMode] = useState<AnswerMode>("voice");
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const typedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // exit popup (used when the 1 minute challenge is OFF)
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
   const exitDialogRef = useRef(false);
@@ -220,7 +245,11 @@ function LevelQuiz({ level }: { level: string }) {
     // one answer per question: blocks a second hand-in before React has moved to the next question
   const answeredForRef = useRef(-1);
   const indexRef = useRef(currentQuestionIndex);
-  indexRef.current = currentQuestionIndex;
+
+  // keep the ref in step with the shown question (a ref must not be written during render)
+  useEffect(() => {
+    indexRef.current = currentQuestionIndex;
+  }, [currentQuestionIndex]);
   // Deepgram test: how long the screen takes to show the next question after an answer is handed in
   const answerAtRef = useRef<number | null>(null);
   const [switchMs, setSwitchMs] = useState<number[]>([]);
@@ -268,13 +297,56 @@ function LevelQuiz({ level }: { level: string }) {
     if (answeredForRef.current === indexRef.current) return;
     answeredForRef.current = indexRef.current;
 
-    answerAtRef.current = performance.now();
+    answerAtRef.current = nowMs();
     if (controller.isLastQuestion()) {
       void finishQuiz(text);
       return;
     }
 
     controller.nextQuestion(text);
+  }
+
+  /* ------------------------------- keyboard ------------------------------- */
+
+  function clearTypedTimer() {
+    if (typedTimerRef.current) {
+      clearTimeout(typedTimerRef.current);
+      typedTimerRef.current = null;
+    }
+  }
+
+  // hands the typed answer in and clears the box for the next question
+  function sendTyped(answer: string) {
+    clearTypedTimer();
+
+    if (finishedRef.current || exitDialogRef.current) return;
+
+    setTypedAnswer("");
+    handleAnswer(answer);
+  }
+
+  // every key press: restart the wait, then hand the answer in when the wait is over
+  function handleTyping(value: string) {
+    setTypedAnswer(value);
+    clearTypedTimer();
+
+    const answer = value.trim();
+    if (!answer) return;
+
+    const isRight = areAnswersEquivalent(answer, controller.getCorrectAnswer());
+
+    typedTimerRef.current = setTimeout(
+      () => sendTyped(answer),
+      isRight ? KEYBOARD_FAST_MS : KEYBOARD_SLOW_MS
+    );
+  }
+
+  // Enter or the Next button: hand it in right now
+  function submitTyped() {
+    const value = typedAnswer.trim();
+    if (!value) return;
+
+    sendTyped(value);
   }
 
   /* -------------------------------- quiz ---------------------------------- */
@@ -299,10 +371,14 @@ function LevelQuiz({ level }: { level: string }) {
       setCountdown(COUNTDOWN_START);
       setQuizSeconds(60);
       clearHeard();
+      setTypedAnswer("");
       setStarted(true);
 
-      // open the microphone right away, so it is ready for the first question
-      startListening();
+      // voice mode: open the microphone right away, so it is ready for the first question
+      // keyboard mode: the answer box takes the focus instead (see the focus effect below)
+      if (answerMode === "voice") {
+        startListening();
+      }
     } catch (e) {
       console.error("Could not start the test:", e);
     } finally {
@@ -322,7 +398,7 @@ function LevelQuiz({ level }: { level: string }) {
     setCompleted(true);
     stopListening();
 
-    const submitResult = await controller.submitQuiz(lastAnswer);
+    const submitResult = await controller.submitQuiz(lastAnswer, answerMode);
     setResult(submitResult);
   }
 
@@ -350,7 +426,11 @@ function LevelQuiz({ level }: { level: string }) {
 
     exitDialogRef.current = false;
     setExitDialogOpen(false);
-    startListening();
+
+    // keyboard mode: the focus effect puts the cursor back in the answer box
+    if (answerMode === "voice") {
+      startListening();
+    }
   }
 
   // Exit: throw this attempt away and leave (nothing was saved)
@@ -395,6 +475,20 @@ function LevelQuiz({ level }: { level: string }) {
   }, [quizSeconds, started, completed, challengeRunning]);
 
   /* ------------------------------ exit handling ---------------------------- */
+
+  // never leave a typing timer running after the page is closed
+  useEffect(() => {
+    return () => {
+      if (typedTimerRef.current) clearTimeout(typedTimerRef.current);
+    };
+  }, []);
+
+  // keyboard mode: keep the cursor in the answer box for every new question
+  useEffect(() => {
+    if (answerMode === "keyboard" && started && !completed && !exitDialogOpen) {
+      inputRef.current?.focus();
+    }
+  }, [answerMode, started, completed, exitDialogOpen, currentQuestionIndex]);
 
   // stop the microphone while the popup is open
   useEffect(() => {
@@ -594,6 +688,50 @@ function LevelQuiz({ level }: { level: string }) {
               </Alert>
             )}
 
+            {/* ---------------------- answer mode: voice or keyboard ---------------------- */}
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
+              Answer Mode
+            </Typography>
+
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              value={answerMode}
+              onChange={(_, value: AnswerMode | null) => {
+                if (value) setAnswerMode(value);
+              }}
+              sx={{
+                mb: 1,
+                "& .MuiToggleButton-root": {
+                  py: 1.25,
+                  gap: 1,
+                  color: TEXT_SOFT,
+                  borderColor: BORDER,
+                  textTransform: "none",
+                  fontWeight: 700,
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  bgcolor: "#fff",
+                  color: "#000",
+                },
+                "& .MuiToggleButton-root.Mui-selected:hover": { bgcolor: "#e5e5e5" },
+              }}
+            >
+              <ToggleButton value="voice">
+                <MicIcon fontSize="small" /> Voice
+              </ToggleButton>
+
+              <ToggleButton value="keyboard">
+                <KeyboardIcon fontSize="small" /> Keyboard
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            <Typography sx={{ mb: 3, color: TEXT_SOFT }}>
+              {answerMode === "voice"
+                ? "Speak each answer into the microphone."
+                : "Type each answer. It moves to the next question by itself."}
+            </Typography>
+
             {/* -------------------------start 1 minute mode --------------------- */}
             {/* <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
               Enable 1 Minute Mode
@@ -755,6 +893,47 @@ function LevelQuiz({ level }: { level: string }) {
           </Typography>
         </Paper>
 
+        {answerMode === "keyboard" ? (
+          <Card elevation={0} sx={{ ...cardSx, borderRadius: 6, p: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+              <TextField
+                fullWidth
+                autoFocus
+                inputRef={inputRef}
+                value={typedAnswer}
+                placeholder="Type your answer..."
+                onChange={(e) => handleTyping(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitTyped();
+                  }
+                }}
+                slotProps={{
+                  htmlInput: {
+                    autoComplete: "off",
+                    style: { color: TEXT, fontSize: 24, fontWeight: 700 },
+                  },
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: BORDER },
+                  "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#fff" },
+                  "& input::placeholder": { color: TEXT_SOFT, opacity: 1 },
+                }}
+              />
+
+              <Button
+                variant="contained"
+                disabled={!typedAnswer.trim()}
+                onClick={submitTyped}
+                endIcon={<ArrowForwardIcon />}
+                sx={{ ...mainButtonSx, px: 3, whiteSpace: "nowrap" }}
+              >
+                {currentQuestionIndex >= questions.length - 1 ? "Submit" : "Next"}
+              </Button>
+            </Stack>
+          </Card>
+        ) : (
         <Card elevation={0} sx={{ ...cardSx, borderRadius: 6 }}>
           <CardActionArea
             onClick={startListening}
@@ -779,9 +958,10 @@ function LevelQuiz({ level }: { level: string }) {
             </Avatar>
           </CardActionArea>
         </Card>
+        )}
 
       {/* Deepgram test only: how fast the answers come back */}
-        {USE_DEEPGRAM && SHOW_VOICE_DEBUG && voiceStats && (
+        {answerMode === "voice" && USE_DEEPGRAM && SHOW_VOICE_DEBUG && voiceStats && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}>
               You stop speaking to answer handed in: last {voiceStats.lastFinalMs ?? "-"} ms, median{" "}
@@ -810,7 +990,7 @@ function LevelQuiz({ level }: { level: string }) {
           </Box>
         )}
 
-        {micMessage && (
+        {answerMode === "voice" && micMessage && (
           <Alert severity="error" variant="outlined" sx={darkAlertSx("error", { mt: 2 })}>
             {micMessage}
           </Alert>

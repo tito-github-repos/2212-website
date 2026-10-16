@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import Header from "./components/header";
 import Footer from "./components/footer";
 import DisableCopy from "./components/DisableCopy";
@@ -20,14 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* <DisableCopy /> */}
-        <HideOnRoutes>
-          <Header />
-        </HideOnRoutes>
-        <MainContent>{children}</MainContent>
-        <HideOnRoutes>
-          <Footer />
-        </HideOnRoutes>
+        <AppRouterCacheProvider>
+          {/* <DisableCopy /> */}
+          <HideOnRoutes>
+            <Header />
+          </HideOnRoutes>
+          <MainContent>{children}</MainContent>
+          <HideOnRoutes>
+            <Footer />
+          </HideOnRoutes>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

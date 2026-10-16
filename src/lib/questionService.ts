@@ -49,7 +49,12 @@ export type LevelInfo = {
   categoryName: string;
 };
 
+// how the student answered the test: speaking or typing
+export type AnswerMode = "voice" | "keyboard";
+
 export type ScoreData = {
+  latestAnswerMode?: AnswerMode;
+  latestPlatform?: string; // "web" here, "mobile" from the mobile app
   score?: number;
   totalNoQuestions?: number;
   status?: string;
@@ -359,6 +364,9 @@ export async function moveScoreToAttemptHistory(
     totalSeconds: data.latestTotalSeconds ?? 0,
     averageSeconds: data.latestAverageSeconds ?? 0,
     attemptNo,
+    // attempts saved before these fields existed: all were voice, device unknown
+    answerMode: data.latestAnswerMode ?? "voice",
+    platform: data.latestPlatform ?? "unknown",
     attemptStartTime: data.latestAttemptStartTime ?? null,
     attemptEndTime: data.latestAttemptEndTime ?? null,
     status: "Completed",
@@ -438,6 +446,7 @@ export async function updateScoreSheet(params: {
   totalQuestions: number;
   categoryName: string;
   startedAt?: Date;
+  answerMode?: AnswerMode;
 }) {
   await setDoc(
     scoreRef(params.studentId, params.subject, params.level),
@@ -457,6 +466,8 @@ export async function updateScoreSheet(params: {
           ? Math.floor(params.totalSeconds / params.totalQuestions)
           : 0,
       latestAttemptNo: params.attemptNo,
+      latestAnswerMode: params.answerMode ?? "voice",
+      latestPlatform: "web", // this code only runs on the website
       latestAttemptStartTime: params.startedAt
         ? Timestamp.fromDate(params.startedAt)
         : serverTimestamp(),

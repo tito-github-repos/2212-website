@@ -1,3 +1,4 @@
+//src\lib\useQuestionController.ts
 "use client";
 
 // src/lib/useQuestionController.ts
@@ -25,6 +26,7 @@ import {
   moveScoreToAttemptHistory,
   saveAnswerDoc,
   updateScoreSheet,
+  type AnswerMode,
   type LevelInfo,
   type QuestionItem,
   type ScoreData,
@@ -242,7 +244,10 @@ export function useQuestionController(subject: string, level: string) {
   /* ------------------------------ submit quiz ------------------------------- */
 
   // lastAnswer = "" means the time ran out and the current question was not answered
-  async function submitQuiz(lastAnswer: string): Promise<SubmitResult> {
+  async function submitQuiz(
+    lastAnswer: string,
+    answerMode: AnswerMode = "voice"
+  ): Promise<SubmitResult> {
     const items = questionsRef.current;
     const total = items.length;
     const currentStudent = studentRef.current;
@@ -351,6 +356,7 @@ export function useQuestionController(subject: string, level: string) {
         totalQuestions: total,
         categoryName: items[0]?.category || level,
         startedAt: attemptStartRef.current,
+        answerMode,
       });
 
       const allLevels = await getAvailableLevelsWithCategories(subject);
