@@ -8,8 +8,13 @@
   The moment the words that were heard are a finished number AND you are not still speaking,
   it is handed to the quiz.
     - Matches the right answer ("forty two" for 42): handed in after a very short check (fast).
+    - A short number that may still grow ("six" -> "sixty" / "sixteen") and is not the right answer:
+      a longer check, so a pause inside the word does not cut it.
     - Anything else (wrong answers): a slightly longer check so a half-said number is not cut off (safe).
   Deepgram's own signal is still used as a back-up.
+
+  After an answer is handed in, speech in the next fraction of a second is ignored
+  (repeated answers, late words), and the mic box is emptied at once.
 
   Settings (all optional, put them in .env):
     NEXT_PUBLIC_DEEPGRAM_MODEL             default nova-3
@@ -20,6 +25,9 @@
     NEXT_PUBLIC_DEEPGRAM_FAST_STABLE_MS    default 60   (words unchanged this long, answer matches)
     NEXT_PUBLIC_DEEPGRAM_SAFE_SILENCE_MS   default 200  (quiet time needed, everything else)
     NEXT_PUBLIC_DEEPGRAM_SAFE_STABLE_MS    default 150  (words unchanged this long, everything else)
+    NEXT_PUBLIC_DEEPGRAM_GROW_SILENCE_MS   default 450  (quiet time needed, number may still grow: six -> sixty)
+    NEXT_PUBLIC_DEEPGRAM_GROW_STABLE_MS    default 300  (words unchanged this long, number may still grow)
+    NEXT_PUBLIC_DEEPGRAM_NEXT_GUARD_MS     default 250  (after a hand-in, speech in this time is ignored)
     NEXT_PUBLIC_DEEPGRAM_SMART_FORMAT      default false
     NEXT_PUBLIC_DEEPGRAM_KEYTERMS          default none (comma list, nova-3 only)
 */
@@ -35,6 +43,11 @@ const FAST_SILENCE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_FAST_SILENCE_MS 
 const FAST_STABLE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_FAST_STABLE_MS || 60);
 const SAFE_SILENCE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SAFE_SILENCE_MS || 200);
 const SAFE_STABLE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SAFE_STABLE_MS || 150);
+const GROW_SILENCE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_GROW_SILENCE_MS || 450);
+const GROW_STABLE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_GROW_STABLE_MS || 300);
+const NEXT_GUARD_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_NEXT_GUARD_MS || 250);
+const SHOW_ANSWER_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SHOW_ANSWER_MS || 350); // how long the answer stays visible
+const SAMPLE_RATE = 16000; // must match sample_rate sent to Deepgram below
 // a number that ends like this may still be continued ("twenty" -> "twenty two"), so use the safe wait
 const OPEN_ENDING = /(twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|lac|crore|million|billion)$/;
 const SMART_FORMAT = process.env.NEXT_PUBLIC_DEEPGRAM_SMART_FORMAT === "true";
@@ -42,6 +55,22 @@ const KEYTERMS = (process.env.NEXT_PUBLIC_DEEPGRAM_KEYTERMS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+// a short number word that can still grow into a teen or a tens number: "six" -> "sixteen" / "sixty"
+const GROWS = new Set(["three", "four", "five", "six", "seven", "eight", "nine", "3", "4", "5", "6", "7", "8", "9"]);
+// words that can come right before such a number: "one hundred six" -> "one hundred sixty"
+const BEFORE_GROWS = new Set(["and", "hundred", "thousand", "lakh", "lac", "crore", "million", "billion", "minus", "negative"]);
+
+function mayGrow(text: string) {
+  const w = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim()
+    .split(/\s+/);
+  const last = w[w.length - 1];
+  if (!GROWS.has(last)) return false;
+  return w.length === 1 || BEFORE_GROWS.has(w[w.length - 2]);
+}
 
 export type VoiceTiming = {
   at: number;
@@ -87,17 +116,17 @@ export function useDeepgramVoiceAnswer(options: Options) {
   const streamRef = useRef<MediaStream | null>(null);
   const startingRef = useRef(false);
   const pendingRef = useRef<ArrayBuffer[]>([]); // audio recorded while the connection opens
-  const chunksRef = useRef(0); // 20 ms chunks sent so far (only a fallback clock now)
+  const audioSecRef = useRef(0); // seconds of audio sent to Deepgram so far = Deepgram's clock
+  const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null); // empties the box after the answer was shown
 
   const wordsRef = useRef<{ finals: DgWord[]; interim: DgWord[] }>({ finals: [], interim: [] });
   const textRef = useRef({ text: "", changedAt: 0 });
-  // Deepgram's own clock (seconds): END of the last word that was already handed in.
-  // Any word that starts before this belongs to an answer that is already gone.
+  // Deepgram's clock (seconds): words that START before this belong to an answer that is already gone
   const cutoffRef = useRef(0);
   const uttRef = useRef({ sStart: 0, sEnd: 0, firstAt: 0 });
   const vadRef = useRef({ speaking: false, run: 0, last: 0, noise: 0.01 });
 
-  // numbers are shown as digits ("two" -> 2); not-a-number text is shown as it was heard
+  // numbers are shown as digits ("two" -> 2); text that is not a number is not shown at all
   const toDisplay = useCallback((text: string) => {
     const expected = optionsRef.current.getCorrectAnswer?.();
     return resolveAnswer(text, expected) ?? "";
@@ -131,8 +160,8 @@ export function useDeepgramVoiceAnswer(options: Options) {
     ctxRef.current = null;
 
     pendingRef.current = [];
-    chunksRef.current = 0;
-    cutoffRef.current = 0; // a new connection starts Deepgram's clock at 0 again
+    audioSecRef.current = 0; // a new connection starts Deepgram's clock at 0 again
+    cutoffRef.current = 0;
     resetAnswerState();
     vadRef.current = { speaking: false, run: 0, last: 0, noise: 0.01 };
   }, [resetAnswerState]);
@@ -152,18 +181,26 @@ export function useDeepgramVoiceAnswer(options: Options) {
       const utt = uttRef.current;
       const opts = optionsRef.current;
 
-      // Everything Deepgram said up to the end of the last word we have is now "used".
-      // Late results for those same words are ignored (their start is before this time).
+      const expected = opts.getCorrectAnswer?.();
+      const answer = heard ? resolveAnswer(heard, expected) : null;
+
+      // Deepgram's clock: ignore every word that starts before this.
+      //  - the words just used (late or revised copies of the same words)
+      //  - after a real answer, also the next fraction of a second (a repeated answer, an echo),
+      //    because nobody can read a new question and answer it that fast
       const { finals, interim } = wordsRef.current;
       const lastEnd = [...finals, ...interim].reduce((max, w) => Math.max(max, w.end ?? 0), 0);
-      cutoffRef.current = Math.max(cutoffRef.current, lastEnd || chunksRef.current * 0.02);
+      const guard = answer !== null ? audioSecRef.current + NEXT_GUARD_MS / 1000 : 0;
+      cutoffRef.current = Math.max(cutoffRef.current, lastEnd, guard);
 
       resetAnswerState();
 
-      if (!heard) return;
+      if (flashRef.current) clearTimeout(flashRef.current);
 
-      const expected = opts.getCorrectAnswer?.();
-      const answer = resolveAnswer(heard, expected);
+      if (!heard) {
+        setHeardText("");
+        return;
+      }
 
       const timing: VoiceTiming = {
         at: Date.now(),
@@ -181,17 +218,18 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       setTimings((old) => [...old.slice(-99), timing]);
 
-      const shown = answer ?? "";
-      setHeardText(shown);
+            // noise, "yes", "what?" and so on do not count as an answer
+      if (answer === null || (opts.canListen && !opts.canListen())) {
+        setHeardText("");
+        return;
+      }
 
-      // noise, "yes", "what?" and so on are shown but do not count as an answer
-      if (answer === null) return;
-      if (opts.canListen && !opts.canListen()) return;
-
+      // the answer shows and the next question appears in the same screen update
+      setHeardText(answer);
       opts.onAnswer(answer);
 
-      // clear the words from the mic box unless new words already replaced them
-      setTimeout(() => setHeardText((current) => (current === shown ? "" : current)), 500);
+      // then the box empties by itself, ready for the next answer
+      flashRef.current = setTimeout(() => setHeardText(""), SHOW_ANSWER_MS);
     },
     [resetAnswerState]
   );
@@ -208,11 +246,13 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       textRef.current = { text, changedAt: now };
 
-      if (text) {
+       if (text) {
         if (!uttRef.current.firstAt) uttRef.current.firstAt = now;
       }
-     setHeardText(toDisplay(text));
-      
+
+      const shown = toDisplay(text);
+      if (shown && flashRef.current) clearTimeout(flashRef.current);
+      setHeardText(shown);
     },
     [toDisplay]
   );
@@ -256,7 +296,14 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       refreshText(now);
 
-      if (data.speech_final && textRef.current.text) commit(now, "final");
+      if (data.speech_final && textRef.current.text) {
+        // "six ... ty": Deepgram's early end signal must not cut a number that may still grow
+        const text = textRef.current.text;
+        const expected = optionsRef.current.getCorrectAnswer?.();
+        const growing = mayGrow(text) && !matchesExpected(text, expected);
+
+        if (!growing) commit(now, "final");
+      }
     },
     [commit, refreshText]
   );
@@ -272,9 +319,13 @@ export function useDeepgramVoiceAnswer(options: Options) {
       const expected = optionsRef.current.getCorrectAnswer?.();
       if (resolveAnswer(text, expected) === null) return; // not a finished number yet
 
-      const fast = matchesExpected(text, expected) && !OPEN_ENDING.test(text.toLowerCase().trim());
-      const silence = fast ? FAST_SILENCE_MS : SAFE_SILENCE_MS;
-      const stable = fast ? FAST_STABLE_MS : SAFE_STABLE_MS;
+      const matches = matchesExpected(text, expected);
+      const open = OPEN_ENDING.test(text.toLowerCase().trim());
+      const growing = !matches && mayGrow(text); // "six" while the answer is 60 or 16
+
+      const fast = matches && !open;
+      const silence = fast ? FAST_SILENCE_MS : growing ? GROW_SILENCE_MS : SAFE_SILENCE_MS;
+      const stable = fast ? FAST_STABLE_MS : growing ? GROW_STABLE_MS : SAFE_STABLE_MS;
 
       if (now - vadRef.current.last < silence) return; // still speaking
       if (now - changedAt < stable) return; // words are still changing
@@ -290,11 +341,14 @@ export function useDeepgramVoiceAnswer(options: Options) {
       const now = performance.now();
       const { pcm, rms } = event.data;
 
-      chunksRef.current += 1;
-
       const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcm.buffer as ArrayBuffer);
-      else if (pendingRef.current.length < 150) pendingRef.current.push(pcm.buffer as ArrayBuffer);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(pcm.buffer as ArrayBuffer);
+        audioSecRef.current += pcm.length / SAMPLE_RATE;
+      } else if (pendingRef.current.length < 150) {
+        pendingRef.current.push(pcm.buffer as ArrayBuffer);
+        audioSecRef.current += pcm.length / SAMPLE_RATE;
+      }
 
       const vad = vadRef.current;
       const utt = uttRef.current;
@@ -368,7 +422,7 @@ export function useDeepgramVoiceAnswer(options: Options) {
         model: MODEL,
         language: LANGUAGE,
         encoding: "linear16",
-        sample_rate: "16000",
+        sample_rate: String(SAMPLE_RATE),
         channels: "1",
         interim_results: "true",
         endpointing: String(ENDPOINTING_MS),
