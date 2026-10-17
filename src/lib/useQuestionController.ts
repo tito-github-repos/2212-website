@@ -31,6 +31,7 @@ import {
   type QuestionItem,
   type ScoreData,
   type Student,
+  type TestMode,
 } from "./questionService";
 
 export type SubmitResult = {
@@ -246,7 +247,8 @@ export function useQuestionController(subject: string, level: string) {
   // lastAnswer = "" means the time ran out and the current question was not answered
   async function submitQuiz(
     lastAnswer: string,
-    answerMode: AnswerMode = "voice"
+    answerMode: AnswerMode = "voice",
+    testMode: TestMode = "ownPace"
   ): Promise<SubmitResult> {
     const items = questionsRef.current;
     const total = items.length;
@@ -357,6 +359,7 @@ export function useQuestionController(subject: string, level: string) {
         categoryName: items[0]?.category || level,
         startedAt: attemptStartRef.current,
         answerMode,
+        testMode,
       });
 
       const allLevels = await getAvailableLevelsWithCategories(subject);

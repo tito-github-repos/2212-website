@@ -17,13 +17,11 @@ import Container from "@mui/material/Container";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
 import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -37,7 +35,7 @@ import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 import { formatTime, getBadgeIcon, getResultInfo } from "../../../lib/quizRules";
 import { areAnswersEquivalent } from "../../../lib/answerMatch";
-import { type AnswerMode, type LevelInfo } from "../../../lib/questionService";
+import { type AnswerMode, type LevelInfo, type TestMode } from "../../../lib/questionService";
 import { useVoiceAnswer } from "../../../lib/useVoiceAnswer";
 import { useDeepgramVoiceAnswer, type VoiceTiming } from "../../../lib/useDeepgramVoiceAnswer";
 import {
@@ -71,6 +69,21 @@ const SHOW_VOICE_DEBUG = process.env.NEXT_PUBLIC_VOICE_DEBUG === "true";
 // Enter or the Next button still hands it in at once
 const KEYBOARD_FAST_MS = 300;
 const KEYBOARD_SLOW_MS = 1500;
+
+// total seconds for the whole test in each mode (0 = no time limit, the student sets the pace)
+const TEST_SECONDS: Record<TestMode, number> = {
+  ownPace: 0,
+  twoMinute: 120,
+  oneMinute: 60,
+};
+
+const TEST_MODE_HELP: Record<TestMode, string> = {
+  ownPace: "The next question comes when you answer. No time limit.",
+  twoMinute:
+    "All 60 questions must finish within 2 minutes. If you do not answer in time, the question is skipped. You cannot leave until the timer finishes.",
+  oneMinute:
+    "All 60 questions must finish within 1 minute. If you do not answer in time, the question is skipped. You cannot leave until the timer finishes.",
+};
 
 const GENERAL_LINES = [
   "There are ten tests here. Each test has 60 numerical.",
@@ -226,14 +239,17 @@ function LevelQuiz({ level }: { level: string }) {
   const [typedAnswer, setTypedAnswer] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const typedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typedRef = useRef(""); // the typed text right now (the timer needs the latest value)
 
   // exit popup (used when the 1 minute challenge is OFF)
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
   const exitDialogRef = useRef(false);
 
-  // 1 minute challenge
-  const [oneMinuteMode, setOneMinuteMode] = useState(false);
-  const [quizSeconds, setQuizSeconds] = useState(60);
+  // test mode: own pace, 2 minute or 1 minute (chosen on the instructions page)
+  const [testMode, setTestMode] = useState<TestMode>("ownPace");
+  const testSeconds = TEST_SECONDS[testMode];
+  const deadlineRef = useRef(0); // when the timed test ends (performance.now() clock)
+  const [quizSeconds, setQuizSeconds] = useState(0);
   const [challengeRunning, setChallengeRunning] = useState(false); // fixed when the test starts
   const [exitHintOpen, setExitHintOpen] = useState(false); // orange "cannot leave" message
 
@@ -322,12 +338,14 @@ function LevelQuiz({ level }: { level: string }) {
     if (finishedRef.current || exitDialogRef.current) return;
 
     setTypedAnswer("");
+    typedRef.current = "";
     handleAnswer(answer);
   }
 
   // every key press: restart the wait, then hand the answer in when the wait is over
   function handleTyping(value: string) {
     setTypedAnswer(value);
+    typedRef.current = value;
     clearTypedTimer();
 
     const answer = value.trim();
@@ -339,6 +357,19 @@ function LevelQuiz({ level }: { level: string }) {
       () => sendTyped(answer),
       isRight ? KEYBOARD_FAST_MS : KEYBOARD_SLOW_MS
     );
+  }
+
+  // timed modes: this question's share of the time is over, move on.
+  // Whatever is typed so far is handed in; an empty box means the question is skipped (saved blank).
+  function timeUp() {
+    clearTypedTimer();
+
+    const text = typedRef.current.trim();
+    typedRef.current = "";
+    setTypedAnswer("");
+    clearHeard();
+
+    handleAnswer(text);
   }
 
   // Enter or the Next button: hand it in right now
@@ -365,13 +396,15 @@ function LevelQuiz({ level }: { level: string }) {
       exitDialogRef.current = false;
       setExitDialogOpen(false);
       setExitHintOpen(false);
-      setChallengeRunning(oneMinuteMode);
+      setChallengeRunning(testSeconds > 0);
+      deadlineRef.current = nowMs() + testSeconds * 1000;
       setResult(null);
       setCompleted(false);
       setCountdown(COUNTDOWN_START);
-      setQuizSeconds(60);
+      setQuizSeconds(testSeconds);
       clearHeard();
       setTypedAnswer("");
+      typedRef.current = "";
       setStarted(true);
 
       // voice mode: open the microphone right away, so it is ready for the first question
@@ -398,7 +431,7 @@ function LevelQuiz({ level }: { level: string }) {
     setCompleted(true);
     stopListening();
 
-    const submitResult = await controller.submitQuiz(lastAnswer, answerMode);
+    const submitResult = await controller.submitQuiz(lastAnswer, answerMode, testMode);
     setResult(submitResult);
   }
 
@@ -455,24 +488,37 @@ function LevelQuiz({ level }: { level: string }) {
     setSwitchMs((old) => [...old.slice(-99), ms]);
   }, [currentQuestionIndex]);
 
-  /* ------------------------------ 1 minute mode ---------------------------- */
+  /* ------------------------------ timed modes ------------------------------ */
+  // 2 minute / 1 minute mode share one pool of time for the whole test.
+  // Every question gets  (time left) / (questions left).
+  // Answer early and the later questions get a little more time;
+  // use up the whole share and the question is skipped.
 
+  // the clock shown at the top
   useEffect(() => {
     if (!started || completed || !challengeRunning) return;
 
     const timer = setInterval(() => {
-      setQuizSeconds((seconds) => (seconds > 0 ? seconds - 1 : 0));
-    }, 1000);
+      const left = Math.ceil((deadlineRef.current - nowMs()) / 1000);
+      setQuizSeconds(Math.max(0, left));
+    }, 250);
 
     return () => clearInterval(timer);
   }, [started, completed, challengeRunning]);
 
+  // moves on when this question's share of the time is over
+  // (the last question gets all the time that is left, so the test ends exactly at the limit)
   useEffect(() => {
-    if (started && !completed && challengeRunning && quizSeconds === 0) {
-      void finishQuiz("");
-    }
+    if (!started || completed || !challengeRunning) return;
+
+    const questionsLeft = Math.max(questions.length - currentQuestionIndex, 1);
+    const timeLeft = Math.max(deadlineRef.current - nowMs(), 0);
+
+    const timer = setTimeout(timeUp, timeLeft / questionsLeft);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizSeconds, started, completed, challengeRunning]);
+  }, [currentQuestionIndex, started, completed, challengeRunning, questions.length]);
 
   /* ------------------------------ exit handling ---------------------------- */
 
@@ -732,38 +778,53 @@ function LevelQuiz({ level }: { level: string }) {
                 : "Type each answer. It moves to the next question by itself."}
             </Typography>
 
-            {/* -------------------------start 1 minute mode --------------------- */}
-            {/* <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
-              Enable 1 Minute Mode
+            {/* ---------------------- test mode: own pace / 2 minute / 1 minute ---------------------- */}
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
+              Test Mode
             </Typography>
 
-            <FormControlLabel
-              labelPlacement="start"
-              sx={{ m: 0, mb: 3, width: "100%", justifyContent: "space-between" }}
-              control={
-                <Switch
-                  checked={oneMinuteMode}
-                  onChange={(e) => setOneMinuteMode(e.target.checked)}
-                  sx={{
-                    "& .MuiSwitch-switchBase": { color: "#bbb" },
-                    "& .MuiSwitch-track": { backgroundColor: "#fff", opacity: 0.3 },
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#fff" },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                      backgroundColor: "#fff",
-                      opacity: 0.6,
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ pr: 2, color: TEXT_SOFT }}>
-                  Automatically save after 1 minute whether you answered all questions or not.
-                  You cannot leave the test until the timer finishes.
-                </Typography>
-              }
-            /> */}
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              value={testMode}
+              onChange={(_, value: TestMode | null) => {
+                if (value) setTestMode(value);
+              }}
+              sx={{
+                mb: 1,
+                "& .MuiToggleButton-root": {
+                  py: 1.25,
+                  gap: 0.75,
+                  color: TEXT_SOFT,
+                  borderColor: BORDER,
+                  textTransform: "none",
+                  fontWeight: 700,
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  bgcolor: "#fff",
+                  color: "#000",
+                },
+                "& .MuiToggleButton-root.Mui-selected:hover": { bgcolor: "#e5e5e5" },
+              }}
+            >
+              <ToggleButton value="ownPace">Own pace</ToggleButton>
+              <ToggleButton value="twoMinute">
+                <TimerOutlinedIcon fontSize="small" /> 2 min
+              </ToggleButton>
+              <ToggleButton value="oneMinute">
+                <TimerOutlinedIcon fontSize="small" /> 1 min
+              </ToggleButton>
+            </ToggleButtonGroup>
 
-            {/* --------------------end 1 minite module -------------------      */}
+            <Typography sx={{ mb: testMode === "oneMinute" && answerMode === "voice" ? 1 : 3, color: TEXT_SOFT }}>
+              {TEST_MODE_HELP[testMode]}
+            </Typography>
+
+            {testMode === "oneMinute" && answerMode === "voice" && (
+              <Alert severity="warning" sx={darkAlertSx("warning", { mb: 3 })}>
+                You get only 1 second per question. 
+              </Alert>
+            )}
 
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
               General
@@ -855,7 +916,7 @@ function LevelQuiz({ level }: { level: string }) {
         {challengeRunning && (
           <LinearProgress
             variant="determinate"
-            value={(quizSeconds / 60) * 100}
+            value={(quizSeconds / (testSeconds || 1)) * 100}
             sx={{
               mb: 3,
               height: 8,
@@ -1023,7 +1084,7 @@ function LevelQuiz({ level }: { level: string }) {
             maxWidth: 480,
           }}
         >
-          <Typography sx={{ fontWeight: 700 }}>1 Minute Challenge</Typography>
+          <Typography sx={{ fontWeight: 700 }}>Timed Test</Typography>
           <Typography variant="body2" sx={{ opacity: 0.9 }}>
             You cannot leave until the timer finishes.
           </Typography>
