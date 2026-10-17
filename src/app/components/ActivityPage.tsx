@@ -93,9 +93,9 @@ const TEST_MODE_LABEL: Record<TestMode, string> = {
 // own pace / 2 minute / 1 minute - its own column
 function TestModeCell({ testMode }: { testMode: TestMode }) {
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, whiteSpace: "nowrap" }}>
       {testMode !== "ownPace" && <TimerOutlinedIcon fontSize="small" />}
-      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT, whiteSpace: "nowrap", wordBreak: "normal" }}>
         {TEST_MODE_LABEL[testMode]}
       </Typography>
     </Box>
@@ -105,7 +105,7 @@ function TestModeCell({ testMode }: { testMode: TestMode }) {
 // how the test was answered - its own column
 function AnswerModeCell({ answerMode }: { answerMode: AnswerMode }) {
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, whiteSpace: "nowrap" }}>
       <Tooltip title={answerMode === "keyboard" ? "Keyboard" : "Voice"}>
         {answerMode === "keyboard" ? (
           <KeyboardIcon fontSize="small" />
@@ -113,7 +113,7 @@ function AnswerModeCell({ answerMode }: { answerMode: AnswerMode }) {
           <MicIcon fontSize="small" />
         )}
       </Tooltip>
-      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT, whiteSpace: "nowrap", wordBreak: "normal" }}>
         {answerMode === "keyboard" ? "Keyboard" : "Voice"}
       </Typography>
     </Box>
@@ -137,7 +137,7 @@ function PlatformCell({ platform }: { platform: string }) {
   }
 
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, whiteSpace: "nowrap" }}>
       <Tooltip title={isWeb ? "Web" : "Mobile app"}>
         {isWeb ? (
           <LanguageIcon fontSize="small" />
@@ -145,7 +145,7 @@ function PlatformCell({ platform }: { platform: string }) {
           <PhoneAndroidIcon fontSize="small" />
         )}
       </Tooltip>
-      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT }}>
+      <Typography sx={{ fontSize: "0.85em", color: TEXT_SOFT, whiteSpace: "nowrap", wordBreak: "normal" }}>
         {isWeb ? "Web" : "Mobile"}
       </Typography>
     </Box>
@@ -385,11 +385,12 @@ function HistoryDialog({
             size="small"
             sx={{
               tableLayout: "fixed",
-              minWidth: 700,
+              minWidth: 820,
               "& .MuiTableCell-root": {
                 color: TEXT,
                 borderBottom: `1px solid ${BORDER}`,
                 py: 1.5,
+                px: 1,
               },
               "& tbody tr:last-of-type .MuiTableCell-root": { border: 0 },
             }}
@@ -643,7 +644,7 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
       <Box
         sx={{
           width: "100%",
-          maxWidth: { xs: "100%", sm: 720, md: 900, lg: 1000 },
+          maxWidth: { xs: "100%", sm: 760, md: 1040, lg: 1240 },
           mx: "auto",
         }}
       >
@@ -693,9 +694,9 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
           <Table
             sx={{
               tableLayout: "fixed",
-              minWidth: 900,
+              minWidth: 1040,
               "& .MuiTableCell-root": {
-                px: { xs: 1, sm: 2, md: 3 },
+                px: { xs: 1, sm: 1.5, md: 2 },
                 py: { xs: 1.5, md: 2.5 },
                 fontSize: { xs: "0.75rem", sm: "0.9rem", md: "1.05rem" },
                 wordBreak: "break-word",
@@ -706,10 +707,10 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
           >
             <TableHead>
               <TableRow sx={{ bgcolor: CARD_SOFT }}>
-                <TableCell sx={{ fontWeight: 800, width: "16%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "14%" }}>
                   Category
                 </TableCell>
-                <TableCell sx={{ fontWeight: 800, width: "15%" }}>
+                <TableCell sx={{ fontWeight: 800, width: "14%" }}>
                   Date & Time
                 </TableCell>
                 <TableCell
@@ -732,13 +733,13 @@ export default function ActivityPage({ onBack }: ActivityPageProps) {
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "13%" }}
+                  sx={{ fontWeight: 800, width: "15%" }}
                 >
                   Answer Mode
                 </TableCell>
                 <TableCell
                   align="center"
-                  sx={{ fontWeight: 800, width: "13%" }}
+                  sx={{ fontWeight: 800, width: "14%" }}
                 >
                   Platform
                 </TableCell>
