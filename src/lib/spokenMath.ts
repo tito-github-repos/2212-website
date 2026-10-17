@@ -183,9 +183,19 @@ function readValue(t: string[], i: number): Read | null {
   return { v, next: j };
 }
 
+// function normalize(input: string): string {
+//   return input
+//     .toLowerCase()
+// "six ty" / "six teen" (a pause inside the word) -> "sixty" / "sixteen"
+const STEM: Record<string, string> = { three: "thir", five: "fif", eight: "eigh" };
+
 function normalize(input: string): string {
   return input
     .toLowerCase()
+    .replace(
+      /\b(three|thir|four|five|fif|six|seven|eight|eigh|nine)\s+(ty|teen)\b/g,
+      (_m: string, a: string, b: string) => (STEM[a] ?? a) + b
+    )
     .replace(/[−–—]/g, "-")
     .replace(/(\d),(\d{3})/g, "$1$2")
     .replace(/[,!?;:]/g, " ")
