@@ -52,8 +52,12 @@ export type LevelInfo = {
 // how the student answered the test: speaking or typing
 export type AnswerMode = "voice" | "keyboard";
 
+// ownPace = moves when the student answers; twoMinute / oneMinute = all questions move within 120 / 60 seconds
+export type TestMode = "ownPace" | "twoMinute" | "oneMinute";
+
 export type ScoreData = {
   latestAnswerMode?: AnswerMode;
+  latestTestMode?: TestMode;
   latestPlatform?: string; // "web" here, "mobile" from the mobile app
   score?: number;
   totalNoQuestions?: number;
@@ -367,6 +371,8 @@ export async function moveScoreToAttemptHistory(
     // attempts saved before these fields existed: all were voice, device unknown
     answerMode: data.latestAnswerMode ?? "voice",
     platform: data.latestPlatform ?? "unknown",
+    // attempts saved before test modes existed were all own pace
+    testMode: data.latestTestMode ?? "ownPace",
     attemptStartTime: data.latestAttemptStartTime ?? null,
     attemptEndTime: data.latestAttemptEndTime ?? null,
     status: "Completed",
@@ -447,6 +453,7 @@ export async function updateScoreSheet(params: {
   categoryName: string;
   startedAt?: Date;
   answerMode?: AnswerMode;
+  testMode?: TestMode;
 }) {
   await setDoc(
     scoreRef(params.studentId, params.subject, params.level),
@@ -467,6 +474,7 @@ export async function updateScoreSheet(params: {
           : 0,
       latestAttemptNo: params.attemptNo,
       latestAnswerMode: params.answerMode ?? "voice",
+      latestTestMode: params.testMode ?? "ownPace",
       latestPlatform: "web", // this code only runs on the website
       latestAttemptStartTime: params.startedAt
         ? Timestamp.fromDate(params.startedAt)
