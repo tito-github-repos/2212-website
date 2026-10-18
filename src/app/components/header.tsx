@@ -338,7 +338,7 @@ export default function Header() {
             }}
           >
             {/* Practice Now Button */}
-            {/* <Button
+            <Button
               component={Link}
               href="/practice"
               onClick={handleClose}
@@ -347,7 +347,7 @@ export default function Header() {
               sx={loginButtonSx}
             >
               Practice Now
-            </Button> */}
+            </Button>
             <Button
               component={Link}
               href="/#register"
