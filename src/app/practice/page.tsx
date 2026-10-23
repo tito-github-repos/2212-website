@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import {
@@ -15,6 +16,12 @@ import {
 } from "@mui/material";
 import { auth, loginWithGoogle } from "@/lib/firebase";
 import { loadStudentProfile } from "@/lib/studentProfile";
+import {
+  PLAN_LINK,
+  blockedCopy,
+  checkWebAccess,
+  type WebAccess,
+} from "@/lib/webAccess";
 
 // Turns a Firebase error code into a message the user can act on.
 // Returns "" when nothing should be shown (the user just closed the popup).
@@ -44,17 +51,27 @@ function getLoginErrorMessage(code?: string) {
   }
 }
 
+async function safeSignOut() {
+  try {
+    await signOut(auth);
+  } catch (signOutError) {
+    console.error("Sign out failed:", signOutError);
+  }
+}
+
 export default function PracticeLoginPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [deactivated, setDeactivated] = useState(false);
+  const [blocked, setBlocked] = useState<WebAccess | null>(null);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setErrorMessage("");
     setDeactivated(false);
+    setBlocked(null);
 
     let destination = "";
 
@@ -66,24 +83,29 @@ export default function PracticeLoginPage() {
 
         if (profile.deactivated) {
           // Deleted account: do not let it in
-          await signOut(auth);
+          await safeSignOut();
           setDeactivated(true);
         } else {
-          // First-time users have no profile yet, so they register first
-          destination = profile.exists ? "/maths" : "/complete-profile";
+          // The plan is checked on our server, which verifies the Google sign-in itself
+          const access = await checkWebAccess(credential.user);
+
+          if (access.status !== "PAID") {
+            // No active plan: sign out and show why
+            await safeSignOut();
+            setBlocked(access);
+          } else {
+            // First-time users have no profile yet, so they register first
+            destination = profile.exists ? "/maths" : "/complete-profile";
+          }
         }
       } catch (profileError) {
-        console.error("Error checking profile:", profileError);
+        console.error("Error checking profile or plan:", profileError);
         setErrorMessage(
-          "Signed in, but we could not check your profile. Please try again.",
+          "Signed in, but we could not check your profile or plan. Please try again.",
         );
 
         // Start clean so the next try runs the check again
-        try {
-          await signOut(auth);
-        } catch (signOutError) {
-          console.error("Sign out failed:", signOutError);
-        }
+        await safeSignOut();
       }
     } catch (error) {
       console.error("Google login error:", error);
@@ -98,6 +120,8 @@ export default function PracticeLoginPage() {
       setLoading(false);
     }
   };
+
+  const blockedText = blocked ? blockedCopy(blocked) : null;
 
   return (
     <Box
@@ -191,6 +215,32 @@ export default function PracticeLoginPage() {
           >
             <AlertTitle sx={{ fontWeight: 800 }}>Account Deactivated</AlertTitle>
             This account has been deactivated. Please contact with support team
+          </Alert>
+        )}
+
+        {blockedText && (
+          <Alert
+            severity="warning"
+            sx={{ mt: 2, textAlign: "left", borderRadius: "16px" }}
+          >
+            <AlertTitle sx={{ fontWeight: 800 }}>{blockedText.title}</AlertTitle>
+            {blockedText.text}
+            <Box sx={{ mt: 1.5 }}>
+              <Button
+                component={Link}
+                href={PLAN_LINK}
+                variant="contained"
+                size="small"
+                sx={{
+                  bgcolor: "#16a34a",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  "&:hover": { bgcolor: "#15803d" },
+                }}
+              >
+                {blockedText.button}
+              </Button>
+            </Box>
           </Alert>
         )}
 

@@ -19,7 +19,7 @@ const CONTACT_ITEMS = [
   {
     icon: LocalPhoneOutlinedIcon,
     label: "Phone Number",
-    value: "+91 9499953256",
+    value: "+91 9499953257",
     accent: "secondary",
   },
   {

@@ -118,7 +118,7 @@ export default function BookSection() {
             variant="contained"
             fullWidth
             endIcon={<ArrowForwardIcon />}
-            // onClick={() => setOpen(true)}
+            onClick={() => setOpen(true)}
             sx={{
               bgcolor: GREEN_DARK,
               color: "#fff",
