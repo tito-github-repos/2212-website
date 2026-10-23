@@ -63,7 +63,7 @@ export default function AppDownloadSection() {
               }}
             >
               <Image
-                src="/img/home/phone.webp"
+                src="/img/home/phone_1.webp"
                 alt="2212 App"
                 width={520}
                 height={520}
@@ -103,7 +103,7 @@ export default function AppDownloadSection() {
                     },
                   }}
                 >
-                  Get the 2212 App.
+                  Get the DD Mobile App.
                 </Typography>
 
                 <Typography

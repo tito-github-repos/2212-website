@@ -55,7 +55,7 @@ export default function AdminNotification({
           </Heading>
 
           <Text style={{ color: "#475569", marginBottom: "20px" }}>
-            A new student has registered through the 2212 Webite.
+            A new student has registered through the 2212 Website.
           </Text>
 
           <Section>

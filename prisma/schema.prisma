@@ -10,14 +10,15 @@ datasource db {
 }
 
 enum Product {
-  WORKSHEET
+  WORKSHEET // Worksheets + DD Web App 
+  BOOK      // Book, one copy delivered 
 }
 
 enum PaymentStatus {
-  CREATED
-  PAID
-  FAILED
-  REFUNDED
+  CREATED // order created, no payment result yet
+  PAID    // payment captured
+  FAILED  // Razorpay reported a failed payment attempt
+  EXPIRED // abandoned: still unpaid 24 hours after creation
 }
 
 model registration {
@@ -37,18 +38,46 @@ model payment {
   registration      registration  @relation(fields: [registrationId], references: [id])
 
   product           Product
-  amount            Int                         // in paise (₹222 → 22200)
+  amount            Int                         // in paise (₹333 → 33300, ₹222 → 22200)
   currency          String        @default("INR")
   status            PaymentStatus @default(CREATED)
 
   razorpayOrderId   String        @unique
   razorpayPaymentId String?       @unique
+  razorpaySignature String?
 
   paidAt            DateTime?
-  validUntil        DateTime?
+  validUntil        DateTime?                   // only for WORKSHEET; null for BOOK
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  bookOrder         bookOrder?                  // only for product = BOOK
+
   @@index([registrationId, product, status, validUntil])
+  @@index([status, createdAt])
+}
+
+model bookOrder {
+  id             Int       @id @default(autoincrement())
+  paymentId      Int       @unique
+  payment        payment   @relation(fields: [paymentId], references: [id])
+
+  // Delivery contact and address, as entered on the book form
+  name           String    @db.VarChar(100)
+  email          String    @db.VarChar(120)
+  mobile         String    @db.VarChar(10)
+  address        String    @db.VarChar(255)
+  city           String    @db.VarChar(60)
+  state          String    @db.VarChar(60)
+  pincode        String    @db.VarChar(6)
+
+  // Filled in by the team when the parcel is handed to the courier
+  shippedAt      DateTime?
+  trackingNumber String?   @db.VarChar(100)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([shippedAt, createdAt])
 }

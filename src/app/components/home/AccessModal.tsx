@@ -6,7 +6,6 @@ import * as yup from "yup";
 import Turnstile from "react-turnstile";
 import {
   Alert,
-  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -19,9 +18,12 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 
 export type Product = "WORKSHEET";
-type Step = "email" | "register" | "unpaid" | "paid" | "success";
+type Step = "email" | "register" | "unpaid" | "expired" | "paid" | "success";
 
 declare global {
   interface Window {
@@ -32,20 +34,32 @@ declare global {
   }
 }
 
-const PRODUCT_INFO: Record<Product, { label: string; price: string }> = {
-  WORKSHEET: { label: "Worksheet Download", price: "₹729" },
-};
-
-// TODO: replace with the real team details
-const TEAM_CONTACT = {
-  phone: "+91 00000 00000",
-  email: "support@2212.co.in",
+// Display only. The server decides the real amount and validity.
+const PRODUCT_INFO: Record<
+  Product,
+  { label: string; price: string; period: string }
+> = {
+  WORKSHEET: {
+    label: "Worksheets + DD Web App",
+    price: "₹333",
+    period: "1 month",
+  },
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 const isRepeatedDigits = (v: string) => /^(\d)\1{9}$/.test(v);
 const isSequential = (v: string) =>
   "01234567890123456789".includes(v) || "98765432109876543210".includes(v);
+
+const formatDate = (iso: string) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      })
+    : "";
 
 const registerSchema = yup.object({
   name: yup
@@ -93,6 +107,14 @@ const primaryBtnSx = {
   "&:hover": { backgroundColor: "#15803D" },
 };
 
+const outlinedBtnSx = {
+  ...primaryBtnSx,
+  backgroundColor: "transparent",
+  color: "#16A34A",
+  borderColor: "#16A34A",
+  "&:hover": { backgroundColor: "#F1FFF5", borderColor: "#15803D" },
+};
+
 const loadRazorpay = () =>
   new Promise<boolean>((resolve) => {
     if (window.Razorpay) return resolve(true);
@@ -121,6 +143,9 @@ export default function AccessModal({ product, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState("");
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const [validUntil, setValidUntil] = useState(""); // end date of the latest paid plan
+  const [isRenewal, setIsRenewal] = useState(false);
+  const [downloadPass, setDownloadPass] = useState(""); // short-lived pass for the PDFs
   const formStartedAt = useRef(Date.now());
 
   // Turnstile tokens are single-use: clear and remount the widget for a fresh one
@@ -206,11 +231,18 @@ export default function AccessModal({ product, onClose }: Props) {
       }
 
       setToken("");
+      setValidUntil(typeof result.validUntil === "string" ? result.validUntil : "");
+      setDownloadPass(
+        typeof result.downloadPass === "string" ? result.downloadPass : "",
+      );
+
       if (result.status === "NOT_REGISTERED") {
         formStartedAt.current = Date.now();
         setStep("register");
       } else if (result.status === "PAID") {
         setStep("paid");
+      } else if (result.status === "PLAN_EXPIRED") {
+        setStep("expired");
       } else {
         setStep("unpaid");
       }
@@ -284,6 +316,9 @@ export default function AccessModal({ product, onClose }: Props) {
     setMessage("");
     setLoading(true);
 
+    // A student on the "expired" screen is renewing, not paying for the first time
+    const renewing = step === "expired";
+
     try {
       const loaded = await loadRazorpay();
       if (!loaded || !window.Razorpay) {
@@ -303,6 +338,9 @@ export default function AccessModal({ product, onClose }: Props) {
 
       if (!res.ok || !order.success) {
         if (res.status === 409) {
+          // Already has an active plan. No pass here, the paid screen offers
+          // "Get my worksheet downloads" which runs the email check again.
+          setDownloadPass("");
           setStep("paid");
         } else {
           setMessage(
@@ -318,7 +356,7 @@ export default function AccessModal({ product, onClose }: Props) {
         amount: order.amount,
         currency: order.currency,
         name: "2212",
-        description: info.label,
+        description: `${info.label} (${info.period})`,
         order_id: order.orderId,
         prefill: { email: normalizedEmail },
         theme: { color: "#16A34A" },
@@ -336,6 +374,12 @@ export default function AccessModal({ product, onClose }: Props) {
             const verifyResult = await verifyRes.json();
 
             if (verifyRes.ok && verifyResult.success) {
+              setIsRenewal(renewing);
+              setDownloadPass(
+                typeof verifyResult.downloadPass === "string"
+                  ? verifyResult.downloadPass
+                  : "",
+              );
               setStep("success");
             } else {
               setMessage(
@@ -378,6 +422,64 @@ export default function AccessModal({ product, onClose }: Props) {
     />
   );
 
+  // Shown on the "paid" and "success" screens: the web app and the worksheet PDFs
+  const accessActions = (
+    <Stack spacing={1.25}>
+      <Button
+        component={NextLink}
+        href="/practice"
+        fullWidth
+        variant="contained"
+        startIcon={<PlayArrowRoundedIcon />}
+        sx={primaryBtnSx}
+      >
+        Practice Now
+      </Button>
+
+      {downloadPass ? (
+        <>
+          <Button
+            component="a"
+            href={`/api/downloads/questions?pass=${encodeURIComponent(downloadPass)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            fullWidth
+            variant="outlined"
+            startIcon={<FileDownloadOutlinedIcon />}
+            sx={outlinedBtnSx}
+          >
+            Download Questions (PDF)
+          </Button>
+          <Button
+            component="a"
+            href={`/api/downloads/answers?pass=${encodeURIComponent(downloadPass)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            fullWidth
+            variant="outlined"
+            startIcon={<FileDownloadOutlinedIcon />}
+            sx={outlinedBtnSx}
+          >
+            Download Answers (PDF)
+          </Button>
+        </>
+      ) : (
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => {
+            setMessage("");
+            resetTurnstile();
+            setStep("email");
+          }}
+          sx={outlinedBtnSx}
+        >
+          Get my worksheet downloads
+        </Button>
+      )}
+    </Stack>
+  );
+
   return (
     <Dialog
       open
@@ -403,7 +505,8 @@ export default function AccessModal({ product, onClose }: Props) {
           {message && (
             <Alert
               severity={
-                step === "unpaid" && message.startsWith("We received")
+                (step === "unpaid" || step === "expired") &&
+                message.startsWith("We received")
                   ? "warning"
                   : "error"
               }
@@ -416,7 +519,8 @@ export default function AccessModal({ product, onClose }: Props) {
           {step === "email" && (
             <>
               <Typography sx={{ color: "#5B6470" }}>
-                Enter your email to continue.
+                Enter your email to continue. Use the same email you sign in
+                with on Google.
               </Typography>
               <TextField
                 fullWidth
@@ -471,7 +575,6 @@ export default function AccessModal({ product, onClose }: Props) {
                 placeholder="Enter your mobile number"
                 value={mobile}
                 onChange={(e) => handleMobileChange(e.target.value)}
-
                 error={!!errors.mobile}
                 helperText={errors.mobile}
                 slotProps={{
@@ -523,7 +626,7 @@ export default function AccessModal({ product, onClose }: Props) {
             </>
           )}
 
-          {/* STEP 2b: registered, not paid */}
+          {/* STEP 2b: registered, has never paid */}
           {step === "unpaid" && (
             <>
               <Stack
@@ -535,7 +638,7 @@ export default function AccessModal({ product, onClose }: Props) {
                   You&apos;re registered
                 </Typography>
                 <Typography sx={{ color: "#5B6470" }}>
-                  Continue to pay {info.price} / year for {info.label}.
+                  Pay {info.price} for {info.period} of access to {info.label}.
                 </Typography>
               </Stack>
               <Button
@@ -554,7 +657,41 @@ export default function AccessModal({ product, onClose }: Props) {
             </>
           )}
 
-          {/* STEP 2c: already paid */}
+          {/* STEP 2c: has paid before, but the plan has ended */}
+          {step === "expired" && (
+            <>
+              <Stack
+                spacing={1}
+                sx={{ alignItems: "center", textAlign: "center" }}
+              >
+                <EventBusyIcon sx={{ color: "#E8A800", fontSize: 48 }} />
+                <Typography sx={{ fontWeight: 700 }}>
+                  Your plan has expired
+                </Typography>
+                <Typography sx={{ color: "#5B6470" }}>
+                  {validUntil
+                    ? `Your ${info.period} access ended on ${formatDate(validUntil)}. `
+                    : ""}
+                  Renew for {info.price} to continue with {info.label}.
+                </Typography>
+              </Stack>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handlePay}
+                disabled={loading}
+                sx={primaryBtnSx}
+              >
+                {loading ? (
+                  <CircularProgress size={22} color="inherit" />
+                ) : (
+                  `Renew for ${info.price}`
+                )}
+              </Button>
+            </>
+          )}
+
+          {/* STEP 2d: plan is active: web app + worksheet downloads */}
           {step === "paid" && (
             <>
               <Stack
@@ -563,44 +700,13 @@ export default function AccessModal({ product, onClose }: Props) {
               >
                 <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 48 }} />
                 <Typography sx={{ fontWeight: 700 }}>
-                  You&apos;ve already paid for {info.label}
+                  Your plan is active
                 </Typography>
                 <Typography sx={{ color: "#5B6470" }}>
-                  Please contact our team for access or any help.
+                  {`${validUntil ? `Active until ${formatDate(validUntil)}. ` : ""}Open the web app with Practice Now and sign in with Google using ${normalizedEmail}. Your worksheets are ready to download below.`}
                 </Typography>
               </Stack>
-              <Box sx={{ bgcolor: "#F4FAF9", borderRadius: "12px", p: 2 }}>
-                <Typography variant="body2">
-                  Phone: {TEAM_CONTACT.phone}
-                </Typography>
-                <Typography variant="body2">
-                  Email: {TEAM_CONTACT.email}
-                </Typography>
-                <Typography variant="body2">
-                  Or visit our{" "}
-                  <Box
-                    component={NextLink}
-                    href="/contact"
-                    sx={{ color: "#16A34A", fontWeight: 700 }}
-                  >
-                    contact page
-                  </Box>
-                  .
-                </Typography>
-              </Box>
-              <Button
-                fullWidth
-                variant="outlined"
-                onClick={onClose}
-                sx={{
-                  ...primaryBtnSx,
-                  backgroundColor: "transparent",
-                  color: "#16A34A",
-                  "&:hover": { backgroundColor: "#F1FFF5" },
-                }}
-              >
-                Close
-              </Button>
+              {accessActions}
             </>
           )}
 
@@ -613,21 +719,17 @@ export default function AccessModal({ product, onClose }: Props) {
               >
                 <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 56 }} />
                 <Typography sx={{ fontWeight: 700 }}>
-                  Payment successful
+                  {isRenewal ? "Plan renewed" : "Payment successful"}
                 </Typography>
                 <Typography sx={{ color: "#5B6470" }}>
-                  Thank you! Your payment for {info.label} is confirmed. Our
-                  team will get in touch with you.
+                  {`${
+                    isRenewal
+                      ? `Your ${info.label} plan is renewed for another ${info.period}.`
+                      : `Your payment is confirmed and your ${info.period} access has started.`
+                  } Open the web app with Practice Now and sign in with Google using ${normalizedEmail}. Your worksheets are ready to download below.`}
                 </Typography>
               </Stack>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={onClose}
-                sx={primaryBtnSx}
-              >
-                Done
-              </Button>
+              {accessActions}
             </>
           )}
         </Stack>

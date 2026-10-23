@@ -92,9 +92,8 @@ export default function HeroSection() {
                   },
                 }}
               >
-                Where Focus
+                Where Focus Goes,{" "}
                 <br />
-                Goes,{" "}
                 <Box
                   component="span"
                   sx={{
