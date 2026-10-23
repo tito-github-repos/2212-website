@@ -500,8 +500,8 @@ export default function BookOrderModal({ onClose }: Props) {
                   Delivering to
                 </Typography>
                 <Typography variant="body2">
-                  {values.name.trim()}, {values.address.trim()},{" "}
-                  {values.city.trim()}, {values.state.trim()} -{" "}
+                  {values.name.trim()}, <br /> {values.address.trim()},{" "} 
+                  {values.city.trim()}, <br /> {values.state.trim()} -{" "}
                   {values.pincode}
                 </Typography>
               </Box>

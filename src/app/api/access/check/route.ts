@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Product } from "@/generated/prisma";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { createDownloadPass } from "@/lib/downloadPass";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
-const PRODUCTS = Object.values(Product) as string[];
+
+// Only products with an access period go through this route.
+// BOOK has its own flow at /api/book-orders.
+const PRODUCTS: string[] = [Product.WORKSHEET];
 
 const fail = (message: string, status: number) =>
   NextResponse.json({ success: false, message }, { status });
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
       return fail("Verification failed. Please try again.", 400);
     }
 
-    // One indexed query: registration + a valid PAID payment for this product
+    // One indexed query: registration + the latest PAID payment for this product
     const registration = await prisma.registration.findUnique({
       where: { email },
       select: {
@@ -48,22 +52,50 @@ export async function POST(req: NextRequest) {
           where: {
             product: product as Product,
             status: "PAID",
-            validUntil: { gt: new Date() },
+            validUntil: { not: null },
           },
-          select: { id: true },
+          orderBy: { validUntil: "desc" },
+          select: { validUntil: true },
           take: 1,
         },
       },
     });
 
-    const status = !registration
-      ? "NOT_REGISTERED"
-      : registration.payments.length > 0
-        ? "PAID"
-        : "REGISTERED_UNPAID";
+    // NOT_REGISTERED   : no registration for this email
+    // REGISTERED_UNPAID: registered, has never paid
+    // PAID             : latest paid plan is still active
+    // PLAN_EXPIRED     : has paid before, but the latest plan has ended
+    let status:
+      | "NOT_REGISTERED"
+      | "REGISTERED_UNPAID"
+      | "PAID"
+      | "PLAN_EXPIRED";
+    let validUntil: string | null = null;
+
+    if (!registration) {
+      status = "NOT_REGISTERED";
+    } else {
+      const latest = registration.payments[0]?.validUntil ?? null;
+      if (!latest) {
+        status = "REGISTERED_UNPAID";
+      } else {
+        validUntil = latest.toISOString();
+        status = latest > new Date() ? "PAID" : "PLAN_EXPIRED";
+      }
+    }
+
+    // A paid student gets a short-lived pass for the worksheet downloads
+    let downloadPass: string | undefined;
+    if (status === "PAID") {
+      try {
+        downloadPass = createDownloadPass(email);
+      } catch (error) {
+        console.error("Download pass error:", error);
+      }
+    }
 
     return NextResponse.json(
-      { success: true, status },
+      { success: true, status, validUntil, downloadPass },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

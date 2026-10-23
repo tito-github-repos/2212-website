@@ -85,19 +85,41 @@ const TEST_MODE_HELP: Record<TestMode, string> = {
     "All 60 questions must finish within 1 minute. If you do not answer in time, the question is skipped. You cannot leave until the timer finishes.",
 };
 
-const GENERAL_LINES = [
-  "There are ten tests here. Each test has 60 numerical.",
-  "You need to solve each test by less than a minute.",
-  "The goal is to solve within 30 seconds.",
-  "Excellent: Solving it by less than 30 seconds.",
-  "Very Good: Solving it by less than 60 seconds.",
-  "Good: Solving it by less than 120 seconds.",
+// intro paragraph shown at the top of the instructions block
+const INTRO_LINES = [
+  "All your careless mistakes in any exams will be addressed by practicing these exercises daily.",
+  "Your attention span, focus & concentration, mind & memory, improves and transforms transcendentally.",
+  "If you practice it daily for two to three months, you will be able to achieve the goal of completing it in thirty seconds to sixty seconds.",
 ];
 
-const SPECIFIC_LINES = [
-  "Getting full score of 60 out of 60 is our target.",
-  "If you are getting a score of 59/58 is ok.",
-  "If you are getting 57 and less than that, you can repeat the test.",
+// each section: a heading and a list of bullet points
+const INFO_SECTIONS: { title: string; lines: string[] }[] = [
+  {
+    title: "Content",
+    lines: [
+      "There are 16 different sheets.",
+      "Each sheet has 60 numerical.",
+      "You need to solve this within one minute.",
+      "If you could solve it within 2 Minutes: Very Good.",
+      "If you could solve it within 1 Minute: Excellent.",
+    ],
+  },
+  {
+    title: "How to use it",
+    lines: [
+      "Each sheet has 5 copies, to use it from Monday to Friday.",
+      "Practice with Pencil to use the sheets, every week.",
+      "Erase it during weekends; use soft eraser.",
+      "For every iteration, capture the information of Date, Time Taken to complete 60 problems and the score.",
+    ],
+  },
+  {
+    title: "Benefits",
+    lines: [
+      "Be a qualifier to get scholarships for various competitive exams online coaching classes.",
+      "You can subscribe and be eligible to participate in Ramanujam Annual competition and win prizes and certificates.",
+    ],
+  },
 ];
 
 const pulse = keyframes`
@@ -191,6 +213,26 @@ function medianOf(values: number[]) {
 
 function nextLevelPath(level: LevelInfo) {
   return `/maths/${level.levelId}?title=${encodeURIComponent(level.categoryName)}`;
+}
+
+// one titled block of lines; used for the instruction sections
+function InfoBlock({ title, lines, bullets = false }: { title: string; lines: string[]; bullets?: boolean }) {
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
+        {title}
+      </Typography>
+
+      <Stack spacing={1}>
+        {lines.map((line) => (
+          <Typography key={line} sx={{ color: TEXT_SOFT, display: "flex", gap: 1 }}>
+            {bullets && <span>•</span>}
+            <span>{line}</span>
+          </Typography>
+        ))}
+      </Stack>
+    </Box>
+  );
 }
 
 /* The outer page gives every level its own copy of the quiz.
@@ -701,7 +743,7 @@ function LevelQuiz({ level }: { level: string }) {
   if (!started && !completed) {
     return (
       <Box sx={{ ...pageSx, px: 2.5, py: 4 }}>
-        <Container maxWidth="sm" disableGutters>
+        <Container maxWidth="md" disableGutters>
           <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
             <IconButton
               aria-label="Back"
@@ -826,27 +868,18 @@ function LevelQuiz({ level }: { level: string }) {
               </Alert>
             )}
 
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
-              General
-            </Typography>
-
+            {/* ---------------------- intro + Content / How to use it / Benefits ---------------------- */}
             <Stack spacing={1} sx={{ mb: 3 }}>
-              {GENERAL_LINES.map((line) => (
+              {INTRO_LINES.map((line) => (
                 <Typography key={line} sx={{ color: TEXT_SOFT }}>
                   {line}
                 </Typography>
               ))}
             </Stack>
 
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: TEXT }}>
-              Specifics
-            </Typography>
-
-            <Stack spacing={1} sx={{ mb: 3 }}>
-              {SPECIFIC_LINES.map((line) => (
-                <Typography key={line} sx={{ color: TEXT_SOFT }}>
-                  {line}
-                </Typography>
+            <Stack spacing={3} sx={{ mb: 3 }}>
+              {INFO_SECTIONS.map((section) => (
+                <InfoBlock key={section.title} title={section.title} lines={section.lines} bullets />
               ))}
             </Stack>
 

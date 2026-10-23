@@ -4,6 +4,7 @@ import {
   Head,
   Heading,
   Html,
+  Link,
   Preview,
   Row,
   Column,
@@ -19,6 +20,10 @@ interface PaymentConfirmationProps {
   paidOn: string;
   validTill: string;
 }
+
+// The website address shown in the footer and used for its link
+const SITE_URL = "https://2212.co.in";
+const SITE_LABEL = "2212.co.in";
 
 export default function PaymentConfirmation({
   name,
@@ -96,10 +101,9 @@ export default function PaymentConfirmation({
             </Row>
           </Section>
 
-          <Text>
-            Our team will contact you shortly with further details. If you have
-            any questions, feel free to contact us.
-          </Text>
+          <Text>If you have any questions, feel free to contact us.</Text>
+
+          <Text>We look forward to seeing you at the Competition.</Text>
 
           <Section
             style={{
@@ -109,11 +113,16 @@ export default function PaymentConfirmation({
             }}
           >
             <Text style={{ fontWeight: "bold", color: "#0f172a" }}>
-              2212 Website Team
+              2212 Team
             </Text>
 
             <Text style={{ fontSize: "13px", color: "#64748b" }}>
-              2212.co.in
+              <Link
+                href={SITE_URL}
+                style={{ color: "#0f766e", textDecoration: "underline" }}
+              >
+                {SITE_LABEL}
+              </Link>
             </Text>
           </Section>
         </Container>

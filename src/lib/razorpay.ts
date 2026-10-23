@@ -1,19 +1,42 @@
+
 import crypto from "crypto";
 import type { Product } from "@/generated/prisma";
 
 // Amounts in paise. The server is the only source of truth for price.
+// WORKSHEET (worksheets + web app) is ₹333 per month.
+// BOOK is ₹222 for one copy delivered to the buyer's address.
 export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
-  WORKSHEET: { label: "Worksheet Download", amount: 72900 },
+  WORKSHEET: { label: "Worksheets + DD Web App", amount: 100 },
+  BOOK: { label: "2212 Book (1 copy)", amount: 22200 },
 };
 
-// Change validity rules here (e.g. a fixed cutoff for COMPETITION)
-export function getValidUntil(_product: Product, paidAt: Date) {
-  const d = new Date(paidAt);
-  d.setFullYear(d.getFullYear() + 1);
+// How many months of access one payment gives. Products not listed here
+// (like BOOK) have no access period.
+const ACCESS_MONTHS: Partial<Record<Product, number>> = {
+  WORKSHEET: 1,
+};
+
+// Adds calendar months and clamps to the last day of the target month
+// (31 Jan + 1 month = 28/29 Feb, not 3 Mar)
+function addMonths(date: Date, months: number) {
+  const d = new Date(date);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const lastDay = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
   return d;
+}
+
+// Returns null for products with no expiry (BOOK)
+export function getValidUntil(product: Product, paidAt: Date): Date | null {
+  const months = ACCESS_MONTHS[product];
+  return months ? addMonths(paidAt, months) : null;
 }
 
 export async function createRazorpayOrder(args: {

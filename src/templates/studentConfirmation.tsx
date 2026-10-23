@@ -4,15 +4,63 @@ import {
   Head,
   Heading,
   Html,
+  Link,
   Preview,
   Section,
   Text,
 } from "@react-email/components";
+import type { ReactNode } from "react";
+
+import { PRODUCT_CONFIG } from "@/lib/razorpay";
 
 interface StudentConfirmationProps {
   name: string;
   email: string;
-  
+}
+
+// Same links as the "Get the 2212 App" section on the website
+const GOOGLE_PLAY_URL =
+  "https://play.google.com/store/apps/details?id=com.kids_edu_app";
+const APP_STORE_URL = "https://apps.apple.com/in/app/2212/id6756906682";
+
+// The website address shown in the footer and used for its link
+const SITE_URL = "https://2212.co.in";
+const SITE_LABEL = "2212.co.in";
+
+// Prices come from the payment settings, so the email never goes out of date
+const rupees = (paise: number) => `₹${paise / 100}`;
+
+// Same switch as the book section on the website
+const BOOK_ORDERS_OPEN = process.env.NEXT_PUBLIC_BOOK_ORDERS_OPEN === "true";
+
+const linkStyle = { color: "#0f766e", fontWeight: "bold" };
+
+function Offer({
+  title,
+  price,
+  children,
+}: {
+  title: string;
+  price: string;
+  children: ReactNode;
+}) {
+  return (
+    <Section
+      style={{
+        backgroundColor: "#f4faf9",
+        borderRadius: "8px",
+        padding: "12px 18px",
+        margin: "0 0 12px 0",
+      }}
+    >
+      <Text style={{ margin: "4px 0", fontWeight: "bold", color: "#0f172a" }}>
+        {title} <span style={{ color: "#0f766e" }}>- {price}</span>
+      </Text>
+      <Text style={{ margin: "4px 0", color: "#475569", fontSize: "14px" }}>
+        {children}
+      </Text>
+    </Section>
+  );
 }
 
 export default function StudentConfirmation({
@@ -50,23 +98,38 @@ export default function StudentConfirmation({
             Registration Confirmed 🎉
           </Heading>
 
-          <Text>Dear <strong>{name}</strong>,</Text>
-
           <Text>
-            Thank you for registering for our 2212 Mental Calisthenics. We are excited to have
-            you join us!
-          </Text>
-
-        
-
-          <Text>
-            Our team will contact you shortly with further details.If you have any questions, feel free to
-            contact Us.
+            Dear <strong>{name}</strong>,
           </Text>
 
           <Text>
-            We look forward to seeing you at the Competition.
+            Thank you for registering for our 2212 Mental Calisthenics. We are
+            excited to have you join us! Here is what you can do next:
           </Text>
+
+          <Offer title="2212 Mobile App" price="Free">
+            Practise anytime, anywhere. Get it on{" "}
+            <Link href={GOOGLE_PLAY_URL} style={linkStyle}>
+              Google Play
+            </Link>{" "}
+            or the{" "}
+            <Link href={APP_STORE_URL} style={linkStyle}>
+              App Store
+            </Link>
+            .
+          </Offer>
+
+          <Offer
+            title="Worksheets + DD Web App"
+            price={`${rupees(PRODUCT_CONFIG.WORKSHEET.amount)} per month`}
+          >
+            16 worksheets with questions and answers (PDF), plus timed practice
+            tests in the web app.
+          </Offer>
+
+          <Text>If you have any questions, feel free to contact us.</Text>
+
+          <Text>We look forward to seeing you at the Competition.</Text>
 
           <Section
             style={{
@@ -81,7 +144,7 @@ export default function StudentConfirmation({
                 color: "#0f172a",
               }}
             >
-              2212 Website Team
+              2212 Team
             </Text>
 
             <Text
@@ -90,7 +153,12 @@ export default function StudentConfirmation({
                 color: "#64748b",
               }}
             >
-              2212.co.in 
+              <Link
+                href={SITE_URL}
+                style={{ color: "#0f766e", textDecoration: "underline" }}
+              >
+                {SITE_LABEL}
+              </Link>
             </Text>
           </Section>
         </Container>
