@@ -9,7 +9,7 @@ export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
-  WORKSHEET: { label: "Worksheets + DD Web App", amount: 100 },
+  WORKSHEET: { label: "Worksheets + DD Web App", amount: 33300 },
   BOOK: { label: "2212 Book (1 copy)", amount: 22200 },
 };
 
