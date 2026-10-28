@@ -18,50 +18,73 @@ import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import MicRoundedIcon from "@mui/icons-material/MicRounded";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 import AccessModal, { type Product } from "./AccessModal";
-import BookSection from "./booksection";
+// Book section is switched off for now. To bring it back, uncomment this import
+// and the <BookSection /> line further down.
+// import BookSection from "./booksection";
 
 const GREEN = "#19B44A";
 const GREEN_DARK = "#12953c";
 const GREEN_DARKER = "#0e7d32";
 
-/* ---------------- Download Worksheets + Web App banner data ---------------- */
-const downloadBanner = {
-  title: "Worksheets + DD Web App",
-  tagline: "Do daily. Drill daily.",
-  price: "₹ 333",
-  priceSuffix: "/ Month",
-  priceNote: "Worksheet download + web application, both included",
-  cta: "Get Worksheets & App",
-  groups: [
-    {
-      icon: DescriptionOutlinedIcon,
-      title: "Worksheets",
-      features: [
-        "Unlimited worksheet downloads",
-        "16 Mental Calisthenics sheets",
-        "60 questions in each worksheet",
-      ],
-    },
-    {
-      icon: TimerOutlinedIcon,
-      title: "Web Application",
-      features: [
-        "Timed tests on all 16 topics",
-        "Voice answers, instant scores",
-        "See your score history",
-      ],
-    },
-  ],
-  common: [
-    "Eligible to join the competitions",
-    "Be a Qualifier and get FREE online coaching",
-  ],
+/* ---------------- The two product banners ---------------- */
+type BannerData = {
+  product: Product;
+  illustration: "worksheet" | "webapp";
+  mobileIcon: React.ElementType;
+  title: string;
+  tagline: string;
+  features: string[];
+  price: string;
+  priceSuffix: string;
+  priceNote: string;
+  cta: string;
 };
+
+const banners: BannerData[] = [
+  {
+    product: "WORKSHEET",
+    illustration: "worksheet",
+    mobileIcon: DescriptionOutlinedIcon,
+    title: "DD Worksheets",
+    tagline: "Do Daily. Drill Daily.",
+    features: [
+      "Unlimited worksheet downloads",
+      "16 Mental Calisthenics sheets",
+      "60 questions in each worksheet",
+      "Multiple PDF downloads",
+      "Eligible to join the competitions",
+      "Be a Qualifier and get online coaching scholarship",
+    ],
+    price: "₹ 111",
+    priceSuffix: "/ Year",
+    priceNote: "Worksheet PDF downloads",
+    cta: "Get DD Worksheets",
+  },
+  {
+    product: "WEBAPP",
+    illustration: "webapp",
+    mobileIcon: TimerOutlinedIcon,
+    title: "DD Web App",
+    tagline: "Do Daily. Drill Daily.",
+    features: [
+      "Timed tests on all 16 topics",
+      "Voice answers, instant scores",
+      "See your score history",
+      "Eligible to join the competitions",
+      "Be a Qualifier and get online coaching scholarship",
+    ],
+    price: "₹ 333",
+    priceSuffix: "/ Month",
+    priceNote: "Web application access",
+    cta: "Get DD Web App",
+  },
+];
 
 const worksheets = {
   title: "About MCE Worksheets",
@@ -109,7 +132,7 @@ const competition = {
   },
 };
 
-/* ---------------- Worksheet paper illustration (left of banner) ---------------- */
+/* ---------------- Illustration: worksheet paper (DD Worksheet banner) ---------------- */
 function WorksheetIllustration() {
   return (
     <Box
@@ -257,7 +280,139 @@ function WorksheetIllustration() {
   );
 }
 
-/* ---------------- Feature row used inside the banner ---------------- */
+/* ---------------- Illustration: a quiz question (DD Web App banner) ---------------- */
+function WebAppIllustration() {
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        width: 210,
+        height: 190,
+        minWidth: 210,
+        display: { xs: "none", md: "block" },
+      }}
+    >
+      {/* Soft round backdrop */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 10,
+          left: 0,
+          width: 150,
+          height: 160,
+          borderRadius: "50%",
+          bgcolor: "rgba(25,180,74,0.10)",
+        }}
+      />
+
+      {/* Tilted question card */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 6,
+          left: 50,
+          width: 128,
+          height: 158,
+          bgcolor: "#fff",
+          borderRadius: 3,
+          transform: "rotate(8deg)",
+          boxShadow: "0 14px 28px rgba(25,180,74,0.18)",
+          p: 1.75,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1.5,
+        }}
+      >
+        {/* Timer chip */}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{
+            alignItems: "center",
+            border: "1.5px solid #D5DCD8",
+            borderRadius: 5,
+            px: 1,
+            py: 0.25,
+          }}
+        >
+          <TimerOutlinedIcon sx={{ fontSize: 14, color: GREEN }} />
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#4B5563" }}>
+            00:07
+          </Typography>
+        </Stack>
+
+        {/* Question */}
+        <Typography sx={{ fontWeight: 800, fontSize: 22, color: "#111" }}>
+          9+2 = ?
+        </Typography>
+
+        {/* Progress bar */}
+        <Box
+          sx={{
+            height: 4,
+            width: "80%",
+            borderRadius: 2,
+            bgcolor: "#E4E9E6",
+          }}
+        >
+          <Box
+            sx={{ height: 4, width: "60%", borderRadius: 2, bgcolor: GREEN }}
+          />
+        </Box>
+      </Box>
+
+      {/* Voice badge */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 4,
+          right: 22,
+          width: 66,
+          height: 66,
+          borderRadius: "50%",
+          bgcolor: GREEN,
+          border: "4px solid #fff",
+          boxShadow: "0 10px 20px rgba(25,180,74,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MicRoundedIcon sx={{ color: "#fff", fontSize: 34 }} />
+      </Box>
+
+      {/* Little sparkle strokes */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 8,
+          right: 4,
+          width: 14,
+          height: 3,
+          bgcolor: GREEN,
+          borderRadius: 2,
+          transform: "rotate(-35deg)",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          top: 26,
+          right: -4,
+          width: 14,
+          height: 3,
+          bgcolor: GREEN,
+          borderRadius: 2,
+          transform: "rotate(10deg)",
+        }}
+      />
+    </Box>
+  );
+}
+
+/* ---------------- Feature row used inside the banners ---------------- */
 function BannerFeature({ text }: { text: string }) {
   return (
     <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
@@ -269,10 +424,19 @@ function BannerFeature({ text }: { text: string }) {
   );
 }
 
-/* ---------------- Download Worksheets + Web App banner ---------------- */
-function DownloadBanner({ onDownload }: { onDownload: () => void }) {
+/* ---------------- One product banner (used for both products) ---------------- */
+function ProductBanner({
+  banner,
+  onOpen,
+}: {
+  banner: BannerData;
+  onOpen: () => void;
+}) {
+  const MobileIcon = banner.mobileIcon;
+
   return (
     <Box
+    id={`banner-${banner.product.toLowerCase()}`}
       sx={{
         position: "relative",
         overflow: "hidden",
@@ -283,6 +447,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
         background: "linear-gradient(180deg, #E9F9EE 0%, #F3FBF6 100%)",
         border: "1px solid #CFEFD9",
         p: { xs: 3, md: 3.5 },
+        scrollMarginTop: "80px",
       }}
     >
       {/* Corner blobs */}
@@ -314,9 +479,13 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
         spacing={{ xs: 3, md: 3 }}
         sx={{ position: "relative", zIndex: 1, alignItems: "center" }}
       >
-        <WorksheetIllustration />
+        {banner.illustration === "worksheet" ? (
+          <WorksheetIllustration />
+        ) : (
+          <WebAppIllustration />
+        )}
 
-        {/* Middle: title + feature groups */}
+        {/* Middle: title + features */}
         <Box sx={{ flexGrow: 1, width: "100%", minWidth: 0 }}>
           <Stack direction="row" sx={{ alignItems: "center", gap: 1.5, mb: 2 }}>
             {/* Icon: mobile only */}
@@ -333,7 +502,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
                 boxShadow: "0 8px 16px rgba(25,180,74,0.3)",
               }}
             >
-              <DescriptionOutlinedIcon sx={{ color: "#fff", fontSize: 24 }} />
+              <MobileIcon sx={{ color: "#fff", fontSize: 24 }} />
             </Box>
 
             <Box>
@@ -345,7 +514,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
                   lineHeight: 1.15,
                 }}
               >
-                {downloadBanner.title}
+                {banner.title}
               </Typography>
               <Typography
                 sx={{
@@ -355,64 +524,13 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
                   mt: 0.25,
                 }}
               >
-                {downloadBanner.tagline}
+                {banner.tagline}
               </Typography>
             </Box>
           </Stack>
 
-          {/* Two groups: Worksheets | Web Application */}
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-              columnGap: { xs: 2.5, sm: 2 },
-              rowGap: 2.5,
-              mb: 2,
-            }}
-          >
-            {downloadBanner.groups.map(({ icon: Icon, title, features }) => (
-              <Box key={title}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: "center", mb: 1.25 }}
-                >
-                  <Box
-                    sx={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: "50%",
-                      bgcolor: "rgba(25,180,74,0.14)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon sx={{ color: GREEN_DARK, fontSize: 18 }} />
-                  </Box>
-                  <Typography
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: { xs: "1rem", md: "1.05rem" },
-                      color: "#111",
-                    }}
-                  >
-                    {title}
-                  </Typography>
-                </Stack>
-                <Stack spacing={1}>
-                  {features.map((f) => (
-                    <BannerFeature key={f} text={f} />
-                  ))}
-                </Stack>
-              </Box>
-            ))}
-          </Box>
-
-          {/* Common to both */}
-          <Divider sx={{ borderColor: "#D6EFDD", mb: 2 }} />
           <Stack spacing={1}>
-            {downloadBanner.common.map((f) => (
+            {banner.features.map((f) => (
               <BannerFeature key={f} text={f} />
             ))}
           </Stack>
@@ -439,7 +557,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
         {/* Right: price + CTA */}
         <Stack
           spacing={2}
-          sx={{ width: { xs: "100%", md: 260 }, minWidth: { md: 260 } }}
+          sx={{ width: { xs: "100%", md: 260 }, minWidth: { md: 360 } }}
         >
           <Box
             sx={{
@@ -464,10 +582,10 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
                   lineHeight: 1.1,
                 }}
               >
-                {downloadBanner.price}
+                {banner.price}
               </Typography>
               <Typography sx={{ color: "#6B7280", fontSize: "1rem" }}>
-                {downloadBanner.priceSuffix}
+                {banner.priceSuffix}
               </Typography>
             </Stack>
             <Typography
@@ -478,7 +596,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
                 lineHeight: 1.4,
               }}
             >
-              {downloadBanner.priceNote}
+              {banner.priceNote}
             </Typography>
           </Box>
 
@@ -486,7 +604,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
             variant="contained"
             fullWidth
             endIcon={<ArrowForwardIcon />}
-            onClick={onDownload}
+            onClick={onOpen}
             sx={{
               bgcolor: GREEN_DARK,
               color: "#fff",
@@ -499,7 +617,7 @@ function DownloadBanner({ onDownload }: { onDownload: () => void }) {
               "&:hover": { bgcolor: GREEN_DARKER },
             }}
           >
-            {downloadBanner.cta}
+            {banner.cta}
           </Button>
         </Stack>
       </Stack>
@@ -599,10 +717,16 @@ export default function PremiumResourcesSection() {
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        {/* Download Worksheets + Web App banner */}
-        <DownloadBanner onDownload={() => setActiveProduct("WORKSHEET")} />
+        {/* DD Worksheet banner, then DD Web App banner (stacked) */}
+        {banners.map((banner) => (
+          <ProductBanner
+            key={banner.product}
+            banner={banner}
+            onOpen={() => setActiveProduct(banner.product)}
+          />
+        ))}
 
-        {/* Book banner (separate section, after the worksheets banner) */}
+        {/* Book banner (switched off for now) */}
         {/* <BookSection /> */}
 
         <Box

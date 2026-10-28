@@ -10,7 +10,7 @@ import CampaignRoundedIcon from "@mui/icons-material/CampaignRounded";
  * Path to the banner image.
  * File location: public/img/promo-banner.webp
  */
-const BANNER_IMAGE = "/img/promo-banner.webp";
+const BANNER_IMAGE = "/img/promo-banner-1.webp";
 
 export default function PromoPopup() {
   const [open, setOpen] = useState(false);

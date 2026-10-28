@@ -13,7 +13,8 @@ export type WebAccess = {
 };
 
 // Where the "Get plan / Renew" button takes the student
-export const PLAN_LINK = "/#premium-resources";
+// export const PLAN_LINK = "/#premium-resources";
+export const PLAN_LINK = "/#banner-webapp";
 
 // Asks our server whether this signed-in student has an active plan.
 // The server verifies the sign-in token, so this can't be faked from the browser.
