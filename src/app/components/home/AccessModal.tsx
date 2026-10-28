@@ -22,7 +22,7 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 
-export type Product = "WORKSHEET";
+export type Product = "WORKSHEET" | "WEBAPP";
 type Step = "email" | "register" | "unpaid" | "expired" | "paid" | "success";
 
 declare global {
@@ -39,11 +39,8 @@ const PRODUCT_INFO: Record<
   Product,
   { label: string; price: string; period: string }
 > = {
-  WORKSHEET: {
-    label: "Worksheets + DD Web App",
-    price: "₹333",
-    period: "1 month",
-  },
+  WORKSHEET: { label: "DD Worksheets", price: "₹111", period: "1 year" },
+  WEBAPP: { label: "DD Web App", price: "₹333", period: "1 month" },
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
@@ -132,6 +129,9 @@ type Props = {
 
 export default function AccessModal({ product, onClose }: Props) {
   const info = PRODUCT_INFO[product];
+  // The web app is used through Practice Now (Google sign-in).
+  // The worksheet is used through the PDF downloads.
+  const isWebApp = product === "WEBAPP";
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -422,62 +422,71 @@ export default function AccessModal({ product, onClose }: Props) {
     />
   );
 
-  // Shown on the "paid" and "success" screens: the web app and the worksheet PDFs
-  const accessActions = (
+  // What the student can do once the plan is active
+  const useText = isWebApp
+    ? `Open the web app with Practice Now and sign in with Google using ${normalizedEmail}.`
+    : "Your worksheets are ready to download below.";
+
+  const activeText = `${validUntil ? `Active until ${formatDate(validUntil)}. ` : ""}${useText}`;
+
+  const successText = `${
+    isRenewal
+      ? `Your ${info.label} plan is renewed for another ${info.period}.`
+      : `Your payment is confirmed and your ${info.period} access has started.`
+  } ${useText}`;
+
+  // Shown on the "paid" and "success" screens
+  const accessActions = isWebApp ? (
+    <Button
+      component={NextLink}
+      href="/practice"
+      fullWidth
+      variant="contained"
+      startIcon={<PlayArrowRoundedIcon />}
+      sx={primaryBtnSx}
+    >
+      Practice Now
+    </Button>
+  ) : downloadPass ? (
     <Stack spacing={1.25}>
       <Button
-        component={NextLink}
-        href="/practice"
+        component="a"
+        href={`/api/downloads/questions?pass=${encodeURIComponent(downloadPass)}`}
+        target="_blank"
+        rel="noopener noreferrer"
         fullWidth
         variant="contained"
-        startIcon={<PlayArrowRoundedIcon />}
+        startIcon={<FileDownloadOutlinedIcon />}
         sx={primaryBtnSx}
       >
-        Practice Now
+        Download Questions (PDF)
       </Button>
-
-      {downloadPass ? (
-        <>
-          <Button
-            component="a"
-            href={`/api/downloads/questions?pass=${encodeURIComponent(downloadPass)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            fullWidth
-            variant="outlined"
-            startIcon={<FileDownloadOutlinedIcon />}
-            sx={outlinedBtnSx}
-          >
-            Download Questions (PDF)
-          </Button>
-          <Button
-            component="a"
-            href={`/api/downloads/answers?pass=${encodeURIComponent(downloadPass)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            fullWidth
-            variant="outlined"
-            startIcon={<FileDownloadOutlinedIcon />}
-            sx={outlinedBtnSx}
-          >
-            Download Answers (PDF)
-          </Button>
-        </>
-      ) : (
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={() => {
-            setMessage("");
-            resetTurnstile();
-            setStep("email");
-          }}
-          sx={outlinedBtnSx}
-        >
-          Get my worksheet downloads
-        </Button>
-      )}
+      <Button
+        component="a"
+        href={`/api/downloads/answers?pass=${encodeURIComponent(downloadPass)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        fullWidth
+        variant="outlined"
+        startIcon={<FileDownloadOutlinedIcon />}
+        sx={outlinedBtnSx}
+      >
+        Download Answers (PDF)
+      </Button>
     </Stack>
+  ) : (
+    <Button
+      fullWidth
+      variant="outlined"
+      onClick={() => {
+        setMessage("");
+        resetTurnstile();
+        setStep("email");
+      }}
+      sx={outlinedBtnSx}
+    >
+      Get my worksheet downloads
+    </Button>
   );
 
   return (
@@ -519,8 +528,9 @@ export default function AccessModal({ product, onClose }: Props) {
           {step === "email" && (
             <>
               <Typography sx={{ color: "#5B6470" }}>
-                Enter your email to continue. Use the same email you sign in
-                with on Google.
+                {isWebApp
+                  ? "Enter your email to continue. Use the same email you sign in with on Google."
+                  : "Enter your email to continue."}
               </Typography>
               <TextField
                 fullWidth
@@ -691,7 +701,7 @@ export default function AccessModal({ product, onClose }: Props) {
             </>
           )}
 
-          {/* STEP 2d: plan is active: web app + worksheet downloads */}
+          {/* STEP 2d: plan is active */}
           {step === "paid" && (
             <>
               <Stack
@@ -702,9 +712,7 @@ export default function AccessModal({ product, onClose }: Props) {
                 <Typography sx={{ fontWeight: 700 }}>
                   Your plan is active
                 </Typography>
-                <Typography sx={{ color: "#5B6470" }}>
-                  {`${validUntil ? `Active until ${formatDate(validUntil)}. ` : ""}Open the web app with Practice Now and sign in with Google using ${normalizedEmail}. Your worksheets are ready to download below.`}
-                </Typography>
+                <Typography sx={{ color: "#5B6470" }}>{activeText}</Typography>
               </Stack>
               {accessActions}
             </>
@@ -721,13 +729,7 @@ export default function AccessModal({ product, onClose }: Props) {
                 <Typography sx={{ fontWeight: 700 }}>
                   {isRenewal ? "Plan renewed" : "Payment successful"}
                 </Typography>
-                <Typography sx={{ color: "#5B6470" }}>
-                  {`${
-                    isRenewal
-                      ? `Your ${info.label} plan is renewed for another ${info.period}.`
-                      : `Your payment is confirmed and your ${info.period} access has started.`
-                  } Open the web app with Practice Now and sign in with Google using ${normalizedEmail}. Your worksheets are ready to download below.`}
-                </Typography>
+                <Typography sx={{ color: "#5B6470" }}>{successText}</Typography>
               </Stack>
               {accessActions}
             </>

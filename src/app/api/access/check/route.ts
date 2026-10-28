@@ -6,9 +6,9 @@ import { createDownloadPass } from "@/lib/downloadPass";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// Only products with an access period go through this route.
+// Products with an access period go through this route.
 // BOOK has its own flow at /api/book-orders.
-const PRODUCTS: string[] = [Product.WORKSHEET];
+const PRODUCTS: string[] = [Product.WORKSHEET, Product.WEBAPP];
 
 const fail = (message: string, status: number) =>
   NextResponse.json({ success: false, message }, { status });
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     });
 
     // NOT_REGISTERED   : no registration for this email
-    // REGISTERED_UNPAID: registered, has never paid
+    // REGISTERED_UNPAID: registered, has never paid for this product
     // PAID             : latest paid plan is still active
     // PLAN_EXPIRED     : has paid before, but the latest plan has ended
     let status:
@@ -84,9 +84,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // A paid student gets a short-lived pass for the worksheet downloads
+    // Only the DD Worksheets includes the PDFs, so only it gets a download pass
     let downloadPass: string | undefined;
-    if (status === "PAID") {
+    if (status === "PAID" && product === Product.WORKSHEET) {
       try {
         downloadPass = createDownloadPass(email);
       } catch (error) {

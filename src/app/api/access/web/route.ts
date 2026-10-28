@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
 
     if (!user.emailVerified) return fail("Your email is not verified", 403);
 
-    const plan = await getPlanStatus(user.email, Product.WORKSHEET);
+    // The web app is its own product (DD Web App)
+    const plan = await getPlanStatus(user.email, Product.WEBAPP);
 
     return NextResponse.json(
       {

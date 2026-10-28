@@ -30,9 +30,6 @@ const SITE_LABEL = "2212.co.in";
 // Prices come from the payment settings, so the email never goes out of date
 const rupees = (paise: number) => `₹${paise / 100}`;
 
-// Same switch as the book section on the website
-const BOOK_ORDERS_OPEN = process.env.NEXT_PUBLIC_BOOK_ORDERS_OPEN === "true";
-
 const linkStyle = { color: "#0f766e", fontWeight: "bold" };
 
 function Offer({
@@ -120,12 +117,26 @@ export default function StudentConfirmation({
           </Offer>
 
           <Offer
-            title="Worksheets + DD Web App"
-            price={`${rupees(PRODUCT_CONFIG.WORKSHEET.amount)} per month`}
+            title="DD Worksheets"
+            price={`${rupees(PRODUCT_CONFIG.WORKSHEET.amount)} per year`}
           >
-            16 worksheets with questions and answers (PDF), plus timed practice
-            tests in the web app.
+            16 worksheets with questions and answers (PDF), to download for a
+            full year.
           </Offer>
+
+          <Offer
+            title="DD Web App"
+            price={`${rupees(PRODUCT_CONFIG.WEBAPP.amount)} per month`}
+          >
+            Timed practice tests on all 16 topics, with instant scores.
+          </Offer>
+
+          {/* Book box, switched off for now. Uncomment when book orders open.
+          <Offer title="DD Workbook + worksheet PDFs" price={rupees(PRODUCT_CONFIG.BOOK.amount)}>
+            The DD workbook is delivered to your address, and you can also
+            download the worksheet PDFs.
+          </Offer>
+          */}
 
           <Text>If you have any questions, feel free to contact us.</Text>
 

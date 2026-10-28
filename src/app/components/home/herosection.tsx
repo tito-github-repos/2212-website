@@ -155,7 +155,7 @@ export default function HeroSection() {
                   }}
                 >
                   {/* Start Learning */}
-                  Download Worksheets
+                  Download DD Worksheets
                 </Button>
 
                 <Button
@@ -184,7 +184,7 @@ export default function HeroSection() {
                     },
                   }}
                 >
-                  Download App
+                  Download DD App
                 </Button>
               </Stack>
 

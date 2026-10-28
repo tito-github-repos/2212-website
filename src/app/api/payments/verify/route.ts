@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // The verified signature proves this browser just paid, so hand out the
-    // download pass (worksheets only, a book has nothing to download)
+    // The verified signature proves this browser just paid. The worksheet PDFs come
+    // with the DD Worksheets (and the book), not with the DD Web App.
     let downloadPass: string | undefined;
-    if (payment.product === Product.WORKSHEET) {
+    if (payment.product !== Product.WEBAPP) {
       try {
         downloadPass = createDownloadPass(payment.registration.email);
       } catch (error) {
