@@ -10,8 +10,9 @@ datasource db {
 }
 
 enum Product {
-  WORKSHEET // Worksheets + DD Web App 
-  BOOK      // Book, one copy delivered 
+  WORKSHEET // DD Worksheets: question + answer PDFs (₹11 / year)
+  WEBAPP    // DD Web App: practice tests via Practice Now (₹333 / month)
+  BOOK      // Book, one copy delivered (₹222), currently switched off
 }
 
 enum PaymentStatus {
@@ -38,16 +39,16 @@ model payment {
   registration      registration  @relation(fields: [registrationId], references: [id])
 
   product           Product
-  amount            Int                         // in paise (₹333 → 33300, ₹222 → 22200)
+  amount            Int                         // in paise (₹333 → 33300, ₹111 → 11100)
   currency          String        @default("INR")
   status            PaymentStatus @default(CREATED)
 
   razorpayOrderId   String        @unique
   razorpayPaymentId String?       @unique
-  razorpaySignature String?
+  razorpaySignature String?                     // checkout signature saved by verify (audit only)
 
   paidAt            DateTime?
-  validUntil        DateTime?                   // only for WORKSHEET; null for BOOK
+  validUntil        DateTime?                   // WORKSHEET and WEBAPP; null for BOOK
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

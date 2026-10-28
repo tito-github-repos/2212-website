@@ -11,9 +11,9 @@ export const runtime = "nodejs";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// Only products with an access period go through this route.
+// Products with an access period go through this route.
 // BOOK has its own flow at /api/book-orders (it needs the delivery address).
-const PRODUCTS: string[] = [Product.WORKSHEET];
+const PRODUCTS: string[] = [Product.WORKSHEET, Product.WEBAPP];
 
 const fail = (message: string, status: number) =>
   NextResponse.json({ success: false, message }, { status });
@@ -56,9 +56,9 @@ export async function POST(req: NextRequest) {
     if (!registration) return fail("Please register first", 404);
     if (registration.payments.length > 0) return fail("Already paid", 409);
 
-    // Reuse this user's unpaid order from the last 24 hours instead of creating
-    // a new one. Razorpay allows retries on the same order, and once it is paid
-    // it can't be paid again. The amount check stops an old price being reused.
+    // Reuse this user's unpaid order for this product from the last 24 hours instead
+    // of creating a new one. Razorpay allows retries on the same order, and once it is
+    // paid it can't be paid again. The amount check stops an old price being reused.
     const existing = await prisma.payment.findFirst({
       where: {
         registrationId: registration.id,

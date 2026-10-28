@@ -1,22 +1,24 @@
-
 import crypto from "crypto";
 import type { Product } from "@/generated/prisma";
 
 // Amounts in paise. The server is the only source of truth for price.
-// WORKSHEET (worksheets + web app) is ₹333 per month.
-// BOOK is ₹222 for one copy delivered to the buyer's address.
+//   WORKSHEET (DD Worksheet PDFs) : ₹111 per year  = 11100 paise
+//   WEBAPP    (DD Web App)        : ₹333 per month = 33300 paise
+//   BOOK      (switched off)      : ₹222
 export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
-  WORKSHEET: { label: "Worksheets + DD Web App", amount: 33300 },
+  WORKSHEET: { label: "DD Worksheets", amount: 11100 },
+  WEBAPP: { label: "DD Web App", amount: 33300 },
   BOOK: { label: "2212 Book (1 copy)", amount: 22200 },
 };
 
 // How many months of access one payment gives. Products not listed here
 // (like BOOK) have no access period.
 const ACCESS_MONTHS: Partial<Record<Product, number>> = {
-  WORKSHEET: 1,
+  WORKSHEET: 12,
+  WEBAPP: 1,
 };
 
 // Adds calendar months and clamps to the last day of the target month
