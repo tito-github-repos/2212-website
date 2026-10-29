@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CheckIcon from "@mui/icons-material/Check";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
@@ -57,8 +56,7 @@ const banners: BannerData[] = [
       "Unlimited worksheet downloads",
       "16 Mental Calisthenics sheets",
       "60 questions in each worksheet",
-      "Multiple PDF downloads",
-      "Eligible to join the competitions",
+      // "Eligible to join the competitions",
       "Be a Qualifier and get online coaching scholarship",
     ],
     price: "₹ 111",
@@ -75,8 +73,9 @@ const banners: BannerData[] = [
     features: [
       "Timed tests on all 16 topics",
       "Voice answers, instant scores",
+      "Multiple modes to practice",
       "See your score history",
-      "Eligible to join the competitions",
+      // "Eligible to join the competitions",
       "Be a Qualifier and get online coaching scholarship",
     ],
     price: "₹ 333",
@@ -110,7 +109,8 @@ const competition = {
     {
       icon: CalendarMonthOutlinedIcon,
       textBefore:
-        "Every year, we conduct competitions at schools on all Saturdays and Sundays during November and December.",
+        "Every year, we conduct competitions on all Saturdays and Sundays every month in your school premises.",
+      // "Every year, we conduct competitions at schools on all Saturdays and Sundays during November and December.",
       linkText: "",
       textAfter: "",
       href: "",
@@ -157,7 +157,7 @@ function WorksheetIllustration() {
         }}
       />
 
-      {/* Tilted paper */}
+      {/* Tilted worksheet card */}
       <Box
         sx={{
           position: "absolute",
@@ -169,66 +169,61 @@ function WorksheetIllustration() {
           borderRadius: 3,
           transform: "rotate(-8deg)",
           boxShadow: "0 14px 28px rgba(25,180,74,0.18)",
-          p: 1.75,
+          p: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
         }}
       >
-        {/* Logo */}
-        <Typography
+        {/* 2212 chip */}
+        <Box
           sx={{
-            fontWeight: 800,
-            color: GREEN,
-            fontSize: 13,
-            lineHeight: 1,
-            mb: 1.5,
+            border: "1.5px solid #D5DCD8",
+            borderRadius: 5,
+            px: 1.25,
+            py: 0.25,
           }}
         >
-          2212
-        </Typography>
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: GREEN }}>
+            2212
+          </Typography>
+        </Box>
 
-        {/* Checklist rows */}
-        <Stack spacing={1.25}>
-          {[0, 1, 2].map((i) => (
-            <Stack
-              key={i}
-              direction="row"
-              spacing={1}
-              sx={{ alignItems: "center" }}
-            >
-              <Box
-                sx={{
-                  width: 15,
-                  height: 15,
-                  minWidth: 15,
-                  borderRadius: 0.75,
-                  bgcolor: GREEN,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <CheckIcon sx={{ color: "#fff", fontSize: 12 }} />
-              </Box>
-              <Box sx={{ flexGrow: 1 }}>
-                <Box
-                  sx={{
-                    height: 4,
-                    borderRadius: 2,
-                    bgcolor: "#D5DCD8",
-                    mb: 0.6,
-                  }}
-                />
-                <Box
-                  sx={{
-                    height: 4,
-                    width: "65%",
-                    borderRadius: 2,
-                    bgcolor: "#E4E9E6",
-                  }}
-                />
-              </Box>
-            </Stack>
-          ))}
-        </Stack>
+        {/* One sample question with a blank line to write the answer */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 0.75,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: 800,
+              fontSize: 20,
+              color: "#111",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            17
+            <Box component="sup" sx={{ fontSize: 12 }}>
+              2
+            </Box>{" "}
+            =
+          </Typography>
+          <Box
+            sx={{
+              width: 28,
+              borderBottom: "1.5px solid #111",
+              mb: "1px",
+            }}
+          />
+        </Box>
       </Box>
 
       {/* Download badge */}
@@ -436,7 +431,7 @@ function ProductBanner({
 
   return (
     <Box
-    id={`banner-${banner.product.toLowerCase()}`}
+      id={`banner-${banner.product.toLowerCase()}`}
       sx={{
         position: "relative",
         overflow: "hidden",
