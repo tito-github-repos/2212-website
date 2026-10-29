@@ -32,13 +32,35 @@ const rupees = (paise: number) => `₹${paise / 100}`;
 
 const linkStyle = { color: "#0f766e", fontWeight: "bold" };
 
+const descriptionStyle = {
+  margin: "4px 0",
+  color: "#475569",
+  fontSize: "14px",
+};
+
+const validityStyle = {
+  margin: "4px 0",
+  color: "#0f172a",
+  fontSize: "14px",
+  fontWeight: "bold",
+};
+
+const listStyle = {
+  margin: "4px 0 4px 0",
+  paddingLeft: "20px",
+  color: "#475569",
+  fontSize: "14px",
+};
+
 function Offer({
   title,
   price,
+  validity,
   children,
 }: {
   title: string;
   price: string;
+  validity: string;
   children: ReactNode;
 }) {
   return (
@@ -53,9 +75,8 @@ function Offer({
       <Text style={{ margin: "4px 0", fontWeight: "bold", color: "#0f172a" }}>
         {title} <span style={{ color: "#0f766e" }}>- {price}</span>
       </Text>
-      <Text style={{ margin: "4px 0", color: "#475569", fontSize: "14px" }}>
-        {children}
-      </Text>
+      <Text style={validityStyle}>Validity: {validity}</Text>
+      {children}
     </Section>
   );
 }
@@ -66,7 +87,7 @@ export default function StudentConfirmation({
   return (
     <Html>
       <Head />
-      <Preview>Your 2212 Competition Registration is Confirmed 🎉</Preview>
+      <Preview>Your 2212 Competition Registration is confirmed</Preview>
 
       <Body
         style={{
@@ -104,43 +125,56 @@ export default function StudentConfirmation({
             excited to have you join us! Here is what you can do next:
           </Text>
 
-          <Offer title="2212 Mobile App" price="Free">
-            Practise anytime, anywhere. Get it on{" "}
-            <Link href={GOOGLE_PLAY_URL} style={linkStyle}>
-              Google Play
-            </Link>{" "}
-            or the{" "}
-            <Link href={APP_STORE_URL} style={linkStyle}>
-              App Store
-            </Link>
-            .
+          <Offer title="2212 Mobile App" price="Free" validity="one year">
+            <Text style={descriptionStyle}>
+              Practise anytime, anywhere. Get it on{" "}
+              <Link href={GOOGLE_PLAY_URL} style={linkStyle}>
+                Google Play
+              </Link>{" "}
+              or the{" "}
+              <Link href={APP_STORE_URL} style={linkStyle}>
+                App Store
+              </Link>
+              .
+            </Text>
           </Offer>
 
           <Offer
             title="DD Worksheets"
             price={`${rupees(PRODUCT_CONFIG.WORKSHEET.amount)} per year`}
+            validity="One year"
           >
-            16 worksheets with questions and answers (PDF), to download for a
-            full year.
+            <ol style={listStyle}>
+              <li style={{ marginBottom: "4px" }}>Multiple downloads in a year</li>
+              <li>16 worksheets with questions and answers (PDF)</li>
+            </ol>
           </Offer>
 
           <Offer
             title="DD Web App"
             price={`${rupees(PRODUCT_CONFIG.WEBAPP.amount)} per month`}
+            validity="One month"
           >
-            Timed practice tests on all 16 topics, with instant scores.
+            
+                Multiple modes: Timed practice tests on all 16 topics, with
+                instant scores.
+              
           </Offer>
 
           {/* Book box, switched off for now. Uncomment when book orders open.
-          <Offer title="DD Workbook + worksheet PDFs" price={rupees(PRODUCT_CONFIG.BOOK.amount)}>
-            The DD workbook is delivered to your address, and you can also
-            download the worksheet PDFs.
+          <Offer
+            title="DD Workbook + worksheet PDFs"
+            price={rupees(PRODUCT_CONFIG.BOOK.amount)}
+            validity="..."
+          >
+            <Text style={descriptionStyle}>
+              The DD workbook is delivered to your address, and you can also
+              download the worksheet PDFs.
+            </Text>
           </Offer>
           */}
 
           <Text>If you have any questions, feel free to contact us.</Text>
-
-          <Text>We look forward to seeing you at the Competition.</Text>
 
           <Section
             style={{
