@@ -1,5 +1,6 @@
 import {
   Body,
+  Column,
   Container,
   Head,
   Heading,
@@ -7,7 +8,6 @@ import {
   Link,
   Preview,
   Row,
-  Column,
   Section,
   Text,
 } from "@react-email/components";
@@ -25,6 +25,39 @@ interface PaymentConfirmationProps {
 const SITE_URL = "https://2212.co.in";
 const SITE_LABEL = "2212.co.in";
 
+// Contact details for the scholarship (same as the Contact page)
+const CONTACT_EMAIL = "2212users@gmail.com";
+const CONTACT_PHONE = "+91 9499953257";
+
+const linkStyle = { color: "#0f766e", fontWeight: "bold" };
+
+const subHeadingStyle = {
+  fontWeight: "bold",
+  color: "#0f172a",
+  margin: "16px 0 6px 0",
+};
+
+const listStyle = {
+  margin: "0 0 16px 0",
+  paddingLeft: "20px",
+  color: "#334155",
+};
+
+// "What you get" points for each product
+const WHAT_YOU_GET = {
+  WORKSHEET: [
+    "1 year validity",
+    "Multiple downloads",
+    "16 worksheets with questions and answers (PDF)",
+  ],
+  WEBAPP: [
+    "Timed tests on all 16 topics",
+    "Voice answers and instant scores",
+    "Multiple practice modes",
+    "Your score history",
+  ],
+};
+
 export default function PaymentConfirmation({
   name,
   productLabel,
@@ -33,6 +66,11 @@ export default function PaymentConfirmation({
   paidOn,
   validTill,
 }: PaymentConfirmationProps) {
+  // Pick the right list from the product name
+  const type = productLabel.toLowerCase().includes("worksheet")
+    ? "WORKSHEET"
+    : "WEBAPP";
+
   return (
     <Html>
       <Head />
@@ -71,8 +109,7 @@ export default function PaymentConfirmation({
 
           <Text>
             Thank you! We have received your payment for{" "}
-            <strong>{productLabel}</strong>. You are also eligible to join the
-            2212 competitions.
+            <strong>{productLabel}</strong>.
           </Text>
 
           <Section
@@ -101,9 +138,35 @@ export default function PaymentConfirmation({
             </Row>
           </Section>
 
-          <Text>If you have any questions, feel free to contact us.</Text>
+          <Text style={subHeadingStyle}>What you get</Text>
+          <ul style={listStyle}>
+            {WHAT_YOU_GET[type].map((item) => (
+              <li key={item} style={{ marginBottom: "4px" }}>
+                {item}
+              </li>
+            ))}
+          </ul>
 
-          <Text>We look forward to seeing you at the Competition.</Text>
+          <Text style={subHeadingStyle}>Online coaching scholarship</Text>
+          <Text>
+            Complete at least 10 of the 16 sheets in less than one minute each
+            with a full score, and you become a Qualifier. All Qualifiers are
+            eligible for the online coaching classes scholarship. When you
+            achieve the status, please contact us at{" "}
+            <Link href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
+              {CONTACT_EMAIL}
+            </Link>{" "}
+            or{" "}
+            <Link
+              href={`tel:${CONTACT_PHONE.replace(/\s/g, "")}`}
+              style={linkStyle}
+            >
+              {CONTACT_PHONE}
+            </Link>
+            .
+          </Text>
+
+          <Text>If you have any questions, feel free to contact us.</Text>
 
           <Section
             style={{
