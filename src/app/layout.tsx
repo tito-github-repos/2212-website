@@ -8,7 +8,7 @@ import HideOnRoutes from "./components/HideOnRoutes";
 import MainContent from "./components/MainContent";
 
 export const metadata: Metadata = {
-  title: "2212 – Sharpen Your Mind, Achieve Your Best",
+  title: "2212-Attention Span Expanding",
   description:
     "Mental calisthenics for a sharper mind, stronger memory, and a brighter future. Practice daily, download worksheets, and join competitions.",
 };
