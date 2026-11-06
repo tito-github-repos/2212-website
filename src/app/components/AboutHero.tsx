@@ -1,8 +1,6 @@
 "use client";
 
 import { Box, Container, Typography, Stack } from "@mui/material";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import FlagRoundedIcon from "@mui/icons-material/FlagRounded";
 import Image from "next/image";
 
 const headingSx = {
@@ -30,39 +28,6 @@ const bodySx = {
   lineHeight: 1.55,
 };
 
-const badgeSx = {
-  flexShrink: 0,
-  width: { xs: 44, md: 52 },
-  height: { xs: 44, md: 52 },
-  borderRadius: "50%",
-  bgcolor: "var(--primary-light)",
-  color: "var(--primary)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-function HeadingBlock({ icon: Icon, title, children, headingId, as = "h2" }) {
-  return (
-    <Stack direction="row" spacing={{ xs: 2, md: 2.5 }} alignItems="flex-start">
-      <Box sx={badgeSx} aria-hidden="true">
-        <Icon sx={{ fontSize: { xs: 24, md: 28 } }} />
-      </Box>
-      <Stack spacing={1.75} sx={{ minWidth: 0 }}>
-        <Box>
-          <Typography id={headingId} component={as} variant="h3" sx={headingSx}>
-            {title}
-          </Typography>
-          <Box sx={underlineSx} />
-        </Box>
-        <Typography component="p" sx={bodySx}>
-          {children}
-        </Typography>
-      </Stack>
-    </Stack>
-  );
-}
-
 export default function AboutHero() {
   return (
     <Box
@@ -89,19 +54,37 @@ export default function AboutHero() {
           {/* Left: text */}
           <Box sx={{ flex: "1 1 380px", minWidth: 0 }}>
             <Stack spacing={{ xs: 3, md: 4 }}>
-              <HeadingBlock
-                icon={VisibilityRoundedIcon}
-                title="Our Vision"
-                headingId="about-hero-heading"
-                as="h1"
-              >
-                Attention Span Focus Concentration to every learner.
-              </HeadingBlock>
+              {/* Our Vision */}
+              <Stack spacing={1.75}>
+                <Box>
+                  <Typography
+                    id="about-hero-heading"
+                    component="h1"
+                    variant="h3"
+                    sx={headingSx}
+                  >
+                    Our Vision
+                  </Typography>
+                  <Box sx={underlineSx} />
+                </Box>
+                <Typography component="p" sx={bodySx}>
+                  Attention Span Focus Concentration to every learner.
+                </Typography>
+              </Stack>
 
-              <HeadingBlock icon={FlagRoundedIcon} title="Our Mission">
-                To make quality mental math training accessible to every student
+              {/* Our Mission */}
+              <Stack spacing={1.75}>
+                <Box>
+                  <Typography component="h2" variant="h3" sx={headingSx}>
+                    Our Mission
+                  </Typography>
+                  <Box sx={underlineSx} />
+                </Box>
+                <Typography component="p" sx={bodySx}>
+                  To make quality mental math training accessible to every student
                 and help them build a strong foundation for a successful future.
-              </HeadingBlock>
+                </Typography>
+              </Stack>
             </Stack>
           </Box>
 
@@ -121,7 +104,6 @@ export default function AboutHero() {
                 aspectRatio: "4 / 3",
                 maskImage:
                   "radial-gradient(ellipse 75% 75% at center, #000 55%, transparent 100%)",
-
                 WebkitMaskImage:
                   "radial-gradient(ellipse 75% 75% at center, #000 55%, transparent 100%)",
               }}
