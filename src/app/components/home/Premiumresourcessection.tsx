@@ -86,7 +86,7 @@ const banners: BannerData[] = [
 ];
 
 const worksheets = {
-  title: "About MCE Worksheets",
+  title: "About DD Worksheets",
   subtitle: "Unlimited access to premium worksheets.",
   features: [
     "Best Brain fitness material.",
@@ -109,8 +109,7 @@ const competition = {
     {
       icon: CalendarMonthOutlinedIcon,
       textBefore:
-        "Every year, we conduct competitions on all Saturdays and Sundays every month in your school premises.",
-      // "Every year, we conduct competitions at schools on all Saturdays and Sundays during November and December.",
+        "Every year and Every month,we conduct competitions on all Saturdays in your school premises.",
       linkText: "",
       textAfter: "",
       href: "",
