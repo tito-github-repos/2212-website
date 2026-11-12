@@ -117,6 +117,13 @@ export function normalizeAnswer(value: string): string {
     text = fromWords;
   }
 
+    // mixed number: "1 1/2" -> "3/2" (before the spaces are removed)
+  text = text.replace(
+    /^(-?)(\d+)\s+(\d+)\/(\d+)$/,
+    (_m: string, sign: string, whole: string, num: string, den: string) =>
+      `${sign}${Number(whole) * Number(den) + Number(num)}/${den}`
+  );
+
   text = text.replace(/\s+/g, "");
 
   if (text.startsWith(".")) {
