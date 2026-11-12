@@ -8,13 +8,16 @@
   The moment the words that were heard are a finished number AND you are not still speaking,
   it is handed to the quiz.
     - Matches the right answer ("forty two" for 42): handed in after a very short check (fast).
-    - A short number that may still grow ("six" -> "sixty" / "sixteen") and is not the right answer:
-      a longer check, so a pause inside the word does not cut it.
+    - Not the right answer yet and it may still be continued ("six" -> "sixty", "three" -> "three by four",
+      "zero point seven" -> "zero point seven five", "one thousand" -> "one thousand seven hundred",
+      "seven" -> "seven to the power five"):
+      a longer check, so a pause inside the answer does not cut it.
     - Anything else (wrong answers): a slightly longer check so a half-said number is not cut off (safe).
   Deepgram's own signal is still used as a back-up.
 
   After an answer is handed in, speech in the next fraction of a second is ignored
-  (repeated answers, late words), and the mic box is emptied at once.
+  (repeated answers, late words). The answer stays in the mic box for a moment while the next
+  question appears, then the box empties by itself.
 
   Settings (all optional, put them in .env):
     NEXT_PUBLIC_DEEPGRAM_MODEL             default nova-3
@@ -25,9 +28,10 @@
     NEXT_PUBLIC_DEEPGRAM_FAST_STABLE_MS    default 60   (words unchanged this long, answer matches)
     NEXT_PUBLIC_DEEPGRAM_SAFE_SILENCE_MS   default 200  (quiet time needed, everything else)
     NEXT_PUBLIC_DEEPGRAM_SAFE_STABLE_MS    default 150  (words unchanged this long, everything else)
-    NEXT_PUBLIC_DEEPGRAM_GROW_SILENCE_MS   default 450  (quiet time needed, number may still grow: six -> sixty)
-    NEXT_PUBLIC_DEEPGRAM_GROW_STABLE_MS    default 300  (words unchanged this long, number may still grow)
+    NEXT_PUBLIC_DEEPGRAM_GROW_SILENCE_MS   default 450  (quiet time needed, answer may still be continued)
+    NEXT_PUBLIC_DEEPGRAM_GROW_STABLE_MS    default 300  (words unchanged this long, answer may still be continued)
     NEXT_PUBLIC_DEEPGRAM_NEXT_GUARD_MS     default 250  (after a hand-in, speech in this time is ignored)
+    NEXT_PUBLIC_DEEPGRAM_SHOW_ANSWER_MS    default 350  (how long the answer stays in the mic box)
     NEXT_PUBLIC_DEEPGRAM_SMART_FORMAT      default false
     NEXT_PUBLIC_DEEPGRAM_KEYTERMS          default none (comma list, nova-3 only)
 */
@@ -46,7 +50,7 @@ const SAFE_STABLE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SAFE_STABLE_MS ||
 const GROW_SILENCE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_GROW_SILENCE_MS || 450);
 const GROW_STABLE_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_GROW_STABLE_MS || 300);
 const NEXT_GUARD_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_NEXT_GUARD_MS || 250);
-const SHOW_ANSWER_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SHOW_ANSWER_MS || 350); // how long the answer stays visible
+const SHOW_ANSWER_MS = Number(process.env.NEXT_PUBLIC_DEEPGRAM_SHOW_ANSWER_MS || 350);
 const SAMPLE_RATE = 16000; // must match sample_rate sent to Deepgram below
 // a number that ends like this may still be continued ("twenty" -> "twenty two"), so use the safe wait
 const OPEN_ENDING = /(twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|lac|crore|million|billion)$/;
@@ -70,6 +74,20 @@ function mayGrow(text: string) {
   const last = w[w.length - 1];
   if (!GROWS.has(last)) return false;
   return w.length === 1 || BEFORE_GROWS.has(w[w.length - 2]);
+}
+
+// the right answer is a fraction, a decimal, a power or a big number ("3/4", "0.75", "7⁵", "1728"):
+// a number heard first may only be the start of it ("three" ... "by four", "seven" ... "power five")
+function needsMore(expected: unknown) {
+  if (typeof expected !== "string" && typeof expected !== "number") return false;
+  const s = String(expected);
+  return /[\/.^⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(s) || s.replace(/\D/g, "").length >= 3;
+}
+
+// true when what was heard is not the right answer yet and may still be continued
+function mayContinue(text: string, expected: unknown) {
+  if (matchesExpected(text, expected)) return false;
+  return mayGrow(text) || needsMore(expected) || OPEN_ENDING.test(text.toLowerCase().trim());
 }
 
 export type VoiceTiming = {
@@ -159,6 +177,9 @@ export function useDeepgramVoiceAnswer(options: Options) {
     ctxRef.current?.close().catch(() => {});
     ctxRef.current = null;
 
+    if (flashRef.current) clearTimeout(flashRef.current);
+    flashRef.current = null;
+
     pendingRef.current = [];
     audioSecRef.current = 0; // a new connection starts Deepgram's clock at 0 again
     cutoffRef.current = 0;
@@ -218,7 +239,7 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       setTimings((old) => [...old.slice(-99), timing]);
 
-            // noise, "yes", "what?" and so on do not count as an answer
+      // noise, "yes", "what?" and so on do not count as an answer
       if (answer === null || (opts.canListen && !opts.canListen())) {
         setHeardText("");
         return;
@@ -246,7 +267,7 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       textRef.current = { text, changedAt: now };
 
-       if (text) {
+      if (text) {
         if (!uttRef.current.firstAt) uttRef.current.firstAt = now;
       }
 
@@ -297,10 +318,11 @@ export function useDeepgramVoiceAnswer(options: Options) {
       refreshText(now);
 
       if (data.speech_final && textRef.current.text) {
-        // "six ... ty": Deepgram's early end signal must not cut a number that may still grow
+        // Deepgram's early end signal must not cut an answer that may still be continued:
+        // "six ... ty", "three ... by four", "zero point seven ... five", "seven ... power five"
         const text = textRef.current.text;
         const expected = optionsRef.current.getCorrectAnswer?.();
-        const growing = mayGrow(text) && !matchesExpected(text, expected);
+        const growing = mayContinue(text, expected);
 
         if (!growing) commit(now, "final");
       }
@@ -321,7 +343,7 @@ export function useDeepgramVoiceAnswer(options: Options) {
 
       const matches = matchesExpected(text, expected);
       const open = OPEN_ENDING.test(text.toLowerCase().trim());
-      const growing = !matches && mayGrow(text); // "six" while the answer is 60 or 16
+      const growing = mayContinue(text, expected); // "six" for 60, "three" for 3/4, "seven" for 7⁵
 
       const fast = matches && !open;
       const silence = fast ? FAST_SILENCE_MS : growing ? GROW_SILENCE_MS : SAFE_SILENCE_MS;
