@@ -1,14 +1,22 @@
 /*
   Turns what a student SAYS into a number, and decides what to hand to the quiz.
 
-  Understands: integers ("forty two", "42", "one hundred and five", "five lakh"),
-  decimals ("two point five", "point zero five"), negatives ("minus three"),
-  fractions ("three by four", "three over four", "three fourths", "half", "one and a half"),
-  powers ("two squared", "three cubed", "two to the power of five", "two power three").
+  Covers every sheet MCE-1 .. MCE-16:
+  integers ("forty two", "42", "one hundred and five", "fifty nine thousand forty nine", "one seven two eight"),
+  decimals ("zero point eight five seven one four two", "point zero five"),
+  negatives ("minus three"),
+  fractions ("six by seven", "six over seven", "six sevenths", "one by two hundred", "half", "one and a half"),
+  powers ("seven to the power of five", "two power ten", "seven raised to five", "seven to the fifth power",
+          "two squared", "three cubed"),
+  percent ("eighty five point seven one percent", "percentage", "per cent").
+
+  Sheet answers that are rounded or cut short ("2/3 = 0.666", "5/12 = 0.4166", "5/12 = 41.66% or 41.67%")
+  are accepted whether the student says the cut or the rounded version.
 */
 
 const UNITS: Record<string, number> = {
-  zero: 0, oh: 0, one: 1, won: 1, two: 2, to: 2, too: 2, three: 3, tree: 3, four: 4, for: 4, fore: 4,
+  zero: 0, oh: 0, o: 0, nil: 0, nought: 0, naught: 0, hero: 0, xero: 0, cero: 0, sero: 0, jero: 0, jiro: 0, ziro: 0,
+  one: 1, won: 1, two: 2, to: 2, too: 2, three: 3, tree: 3, four: 4, for: 4, fore: 4,
   five: 5, six: 6, seven: 7, eight: 8, ate: 8, nine: 9,
 };
 const TEENS: Record<string, number> = {
@@ -24,8 +32,16 @@ const MULTS: Record<string, number> = {
 const DENOMS: Record<string, number> = {
   half: 2, halves: 2, third: 3, thirds: 3, quarter: 4, quarters: 4, fourth: 4, fourths: 4,
   fifth: 5, fifths: 5, sixth: 6, sixths: 6, seventh: 7, sevenths: 7, eighth: 8, eighths: 8,
-  ninth: 9, ninths: 9, tenth: 10, tenths: 10, eleventh: 11, twelfth: 12,
+  ninth: 9, ninths: 9, tenth: 10, tenths: 10, eleventh: 11, elevenths: 11, twelfth: 12, twelfths: 12,
+  thirteenth: 13, thirteenths: 13, fourteenth: 14, fourteenths: 14, fifteenth: 15, fifteenths: 15,
+  sixteenth: 16, sixteenths: 16, seventeenth: 17, seventeenths: 17, eighteenth: 18, eighteenths: 18,
+  nineteenth: 19, nineteenths: 19, twentieth: 20, twentieths: 20, thirtieth: 30, thirtieths: 30,
+  fortieth: 40, fortieths: 40, fiftieth: 50, fiftieths: 50,
   hundredth: 100, hundredths: 100, thousandth: 1000, thousandths: 1000,
+};
+// "seven to the fifth (power)" -> exponent 5
+const ORDINAL_EXP: Record<string, number> = {
+  second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
 };
 const SKIP = new Set(["a", "an", "the", "is", "it", "its", "it's", "answer", "um", "umm", "uh", "uhh", "so", "well", "okay", "ok", "please"]);
 
@@ -183,9 +199,6 @@ function readValue(t: string[], i: number): Read | null {
   return { v, next: j };
 }
 
-// function normalize(input: string): string {
-//   return input
-//     .toLowerCase()
 // "six ty" / "six teen" (a pause inside the word) -> "sixty" / "sixteen"
 const STEM: Record<string, string> = { three: "thir", five: "fif", eight: "eigh" };
 
@@ -201,14 +214,19 @@ function normalize(input: string): string {
     .replace(/[,!?;:]/g, " ")
     .replace(/\.(\s|$)/g, " ")
     .replace(/(?<=[a-z])-(?=[a-z])/g, " ") // forty-two
-    .replace(/\bequals?( to)?\b|\bpercent\b|%/g, " ")
+    .replace(/\bequals?( to)?\b|\bp[ae]r ?[cs]ent(?:age)?\b|%/g, " ")
+    // "seven to the fifth power", "two raised to the third"
     .replace(
-      /\b(?:raised to the power of|raised to the power|to the power of|to the power|raised to the|raised to|to the|power of|power|exponent)\b/g,
+      /\b(?:raised )?to the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)(?: power)?\b/g,
+      (_m: string, w: string) => ` ^ ${ORDINAL_EXP[w]} `
+    )
+    .replace(
+      /\b(?:raised to the power of|raised to the power|to the power of|to the power|raised to the|raised to|to the|power of|power|pow|exponent)\b/g,
       " ^ "
     )
     .replace(/\b(?:squared|square)\b/g, " ^ 2 ")
     .replace(/\b(?:cubed|cube)\b/g, " ^ 3 ")
-    .replace(/\b(?:divided by|over|upon|slash|by)\b/g, " / ")
+    .replace(/\b(?:divided by|over|upon|slash|by|buy|bye|bi)\b/g, " / ")
     .replace(/\b(?:point|dot)\b/g, " . ")
     .replace(/\b(?:minus|negative)\b/g, " - ");
 }
@@ -233,12 +251,18 @@ export function parseSpoken(input: string): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
-/* The expected answer in the question bank: "42", "0.75", "3/4", "1 1/2", "2^3", "9²", "25%". */
+const SUP_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+
+/* The expected answer in the question bank: "42", "0.75", "3/4", "1 1/2", "2^3", "7⁵", "3¹⁰", "9²", "25%". */
 export function parseExpected(raw: string): number | null {
   const s = raw.trim().replace(/[−–—]/g, "-").replace(/(\d),(?=\d{3}\b)/g, "$1").replace(/\s+/g, " ").replace(/%$/, "").trim();
 
-  const sup = s.match(/^(-?\d+(?:\.\d+)?)\s*([²³])$/);
-  if (sup) return Math.pow(Number(sup[1]), sup[2] === "²" ? 2 : 3);
+  // any superscript exponent, one or more digits: 7⁵, 3¹⁰, 2¹
+  const sup = s.match(/^(-?\d+(?:\.\d+)?)\s*([⁰¹²³⁴⁵⁶⁷⁸⁹]+)$/);
+  if (sup) {
+    const exp = Number([...sup[2]].map((c) => SUP_DIGITS.indexOf(c)).join(""));
+    return Math.pow(Number(sup[1]), exp);
+  }
 
   const pow = s.match(/^(-?\d+(?:\.\d+)?)\s*(?:\^|\*\*)\s*(-?\d+(?:\.\d+)?)$/);
   if (pow) return Math.pow(Number(pow[1]), Number(pow[2]));
@@ -261,10 +285,53 @@ const close = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Ma
 const formatNumber = (v: number) => (Number.isInteger(v) ? String(v) : String(Number(v.toFixed(6))));
 
 /*
+  Sheet answers like 0.666 (2/3), 0.4166 (5/12), 41.66% (5/12), 0.33 (1/3) are cut short or rounded.
+  Work out the real value behind such an answer, then accept what the student says if it is
+  the cut version, the rounded version, or the same with more digits.
+  Plain terminating answers (0.5, 0.125, 0.05, 12.5%) must still match exactly.
+*/
+const TERMINATING = [1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80]; // 0.5, 0.125, 0.0625, 0.0125 ...
+const UNIT_ONLY = [100, 200, 1000]; // 1/100, 1/200, 1/1000 only (so 0.33 is NOT treated as 33/100)
+const REPEATING = [3, 6, 7, 9, 11, 12, 24, 32, 48, 60, 70, 90];
+
+function sameValue(spoken: number, raw: unknown, e: number): boolean {
+  if (close(spoken, e)) return true;
+
+  const text = String(raw).trim();
+  const scale = text.endsWith("%") ? 100 : 1;
+  const body = text.replace(/%$/, "").trim();
+  if (!/^-?\d+\.\d+$/.test(body)) return false;
+
+  const d = body.split(".")[1].length;
+  const u = Math.pow(10, -d);
+  const x = e / scale;
+
+  for (const q of TERMINATING) if (Math.abs(x * q - Math.round(x * q)) < 1e-9) return false;
+  for (const q of UNIT_ONLY) if (Math.abs(x * q - 1) < 1e-9) return false;
+
+  for (const q of REPEATING) {
+    const p0 = Math.round(x * q);
+    for (const p of [p0 - 1, p0, p0 + 1]) {
+      if (p <= 0) continue;
+      const tv = (p / q) * scale; // the real value behind the cut-short answer
+      if (tv < e - u / 2 - 1e-9 || tv >= e + u - 1e-9) continue;
+
+      const f = Math.pow(10, d);
+      const cut = Math.floor(tv * f + 1e-9) / f;
+      const rounded = Math.round(tv * f) / f;
+
+      return close(spoken, cut) || close(spoken, rounded) || Math.abs(spoken - tv) < 0.1 / f;
+    }
+  }
+
+  return false;
+}
+
+/*
   What to hand to the quiz for something the student said.
   - Not a finished number -> null (the quiz is not given anything).
-  - Same value as the right answer (0.75 vs 3/4, 8 vs 2^3) -> the right answer written exactly
-    as the question bank has it, so it always matches whatever format the bank uses.
+  - Same value as the right answer (0.75 vs 3/4, 8 vs 2^3, 0.667 vs 0.666) -> the right answer written
+    exactly as the question bank has it, so it always matches whatever format the bank uses.
   - Otherwise -> the plain number that was said ("42", "2.5").
 */
 export function resolveAnswer(spokenText: string, expected?: unknown): string | null {
@@ -273,10 +340,35 @@ export function resolveAnswer(spokenText: string, expected?: unknown): string | 
 
   if (typeof expected === "string" || typeof expected === "number") {
     const e = parseExpected(String(expected));
-    if (e !== null && close(spoken, e)) return String(expected);
+    if (e !== null && sameValue(spoken, expected, e)) return String(expected);
   }
 
+  // a wrong fraction stays a fraction ("one by fifty" -> "1/50", not "0.02"), so you can see what was heard
+  const fraction = spokenAsFraction(spokenText);
+  if (fraction) return fraction;
+
+  // a percentage question, or the student said "percent": keep the % ("twenty percent" -> "20%")
+  const percentQuestion = typeof expected === "string" && expected.trim().endsWith("%");
+  const saidPercent = /per ?cent|persent|%/i.test(spokenText);
+  if (percentQuestion || saidPercent) return formatNumber(spoken) + "%";
+
   return formatNumber(spoken);
+}
+
+/* "one by fifty" -> "1/50"; null if what was said is not a plain whole-number fraction */
+function spokenAsFraction(input: string): string | null {
+  const t = normalize(input).match(/[a-z']+|\d+(?:\.\d+)?|[\/^.\-]/g) ?? [];
+
+  let i = 0;
+  while (i < t.length && SKIP.has(t[i])) i++;
+
+  const top = readInt(t, i);
+  if (!top || t[top.next] !== "/") return null;
+
+  const bottom = readInt(t, top.next + 1);
+  if (!bottom || bottom.next !== t.length || bottom.v === 0) return null;
+
+  return `${top.v}/${bottom.v}`;
 }
 
 /* True if what was said has the same value as the right answer ("three fourths" vs 3/4). */
@@ -286,5 +378,5 @@ export function matchesExpected(spokenText: string, expected?: unknown): boolean
   const spoken = parseSpoken(spokenText);
   const e = parseExpected(String(expected));
 
-  return spoken !== null && e !== null && close(spoken, e);
+  return spoken !== null && e !== null && sameValue(spoken, expected, e);
 }
