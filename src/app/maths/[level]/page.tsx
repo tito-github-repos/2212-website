@@ -43,6 +43,7 @@ import {
   type SubmitResult,
 } from "../../../lib/useQuestionController";
 import ExitQuizDialog from "@/app/components/ExitQuizDialog";
+import { sanitizeAnswerInput } from "../../../lib/answerInput";
 
 const SUBJECT = "Maths";
 const COUNTDOWN_START = 5; // seconds shown in the completed popup before going to the levels
@@ -996,7 +997,7 @@ function LevelQuiz({ level }: { level: string }) {
                 inputRef={inputRef}
                 value={typedAnswer}
                 placeholder="Type your answer..."
-                onChange={(e) => handleTyping(e.target.value)}
+                onChange={(e) => handleTyping(sanitizeAnswerInput(e.target.value))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
