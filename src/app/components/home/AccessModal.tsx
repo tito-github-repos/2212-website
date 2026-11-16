@@ -19,8 +19,11 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+
+import { BOOK_PRICE } from "./BookOrderModal";
 
 export type Product = "WORKSHEET" | "WEBAPP";
 type Step = "email" | "register" | "unpaid" | "expired" | "paid" | "success";
@@ -35,11 +38,12 @@ declare global {
 }
 
 // Display only. The server decides the real amount and validity.
+// WORKSHEET is free now: it is unlocked by a paid DD Web App or 2212 Book.
 const PRODUCT_INFO: Record<
   Product,
   { label: string; price: string; period: string }
 > = {
-  WORKSHEET: { label: "DD Worksheets", price: "₹111", period: "1 year" },
+  WORKSHEET: { label: "DD Worksheets", price: "Free", period: "1 year" },
   WEBAPP: { label: "DD Web App", price: "₹333", period: "1 month" },
 };
 
@@ -129,8 +133,9 @@ type Props = {
 
 export default function AccessModal({ product, onClose }: Props) {
   const info = PRODUCT_INFO[product];
-  // The web app is used through Practice Now (Google sign-in).
-  // The worksheet is used through the PDF downloads.
+  // The web app is used through Practice Now (Google sign-in) and is the only
+  // product paid for here. The worksheet downloads are free for 1 year after a
+  // paid DD Web App or 2212 Book.
   const isWebApp = product === "WEBAPP";
 
   const [step, setStep] = useState<Step>("email");
@@ -152,6 +157,14 @@ export default function AccessModal({ product, onClose }: Props) {
   const resetTurnstile = () => {
     setToken("");
     setTurnstileKey((k) => k + 1);
+  };
+
+  // Close the window, then scroll to the Web App or Book banner on the page
+  const scrollToSection = (id: string) => {
+    onClose();
+    setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }, 300);
   };
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -312,6 +325,7 @@ export default function AccessModal({ product, onClose }: Props) {
     }
   };
 
+  // Only the DD Web App is paid here (the server rejects any other product)
   const handlePay = async () => {
     setMessage("");
     setLoading(true);
@@ -339,7 +353,7 @@ export default function AccessModal({ product, onClose }: Props) {
       if (!res.ok || !order.success) {
         if (res.status === 409) {
           // Already has an active plan. No pass here, the paid screen offers
-          // "Get my worksheet downloads" which runs the email check again.
+          // the Practice Now button.
           setDownloadPass("");
           setStep("paid");
         } else {
@@ -424,7 +438,7 @@ export default function AccessModal({ product, onClose }: Props) {
 
   // What the student can do once the plan is active
   const useText = isWebApp
-    ? `Open the web app with Practice Now and sign in with Google using ${normalizedEmail}.`
+    ? `Open the web app with Practice Now and sign in with Google using ${normalizedEmail}. Your worksheet downloads are also free for 1 year from your payment date.`
     : "Your worksheets are ready to download below.";
 
   const activeText = `${validUntil ? `Active until ${formatDate(validUntil)}. ` : ""}${useText}`;
@@ -435,19 +449,7 @@ export default function AccessModal({ product, onClose }: Props) {
       : `Your payment is confirmed and your ${info.period} access has started.`
   } ${useText}`;
 
-  // Shown on the "paid" and "success" screens
-  const accessActions = isWebApp ? (
-    <Button
-      component={NextLink}
-      href="/practice"
-      fullWidth
-      variant="contained"
-      startIcon={<PlayArrowRoundedIcon />}
-      sx={primaryBtnSx}
-    >
-      Practice Now
-    </Button>
-  ) : downloadPass ? (
+  const downloadButtons = downloadPass ? (
     <Stack spacing={1.25}>
       <Button
         component="a"
@@ -455,9 +457,9 @@ export default function AccessModal({ product, onClose }: Props) {
         target="_blank"
         rel="noopener noreferrer"
         fullWidth
-        variant="contained"
+        variant={isWebApp ? "outlined" : "contained"}
         startIcon={<FileDownloadOutlinedIcon />}
-        sx={primaryBtnSx}
+        sx={isWebApp ? outlinedBtnSx : primaryBtnSx}
       >
         Download Questions (PDF)
       </Button>
@@ -474,19 +476,81 @@ export default function AccessModal({ product, onClose }: Props) {
         Download Answers (PDF)
       </Button>
     </Stack>
+  ) : null;
+
+  // Shown on the "paid" and "success" screens
+  const accessActions = isWebApp ? (
+    <Stack spacing={1.25}>
+      <Button
+        component={NextLink}
+        href="/practice"
+        fullWidth
+        variant="contained"
+        startIcon={<PlayArrowRoundedIcon />}
+        sx={primaryBtnSx}
+      >
+        Practice Now
+      </Button>
+      {/* A pass only comes right after a payment, so this shows on "success" */}
+      {downloadButtons}
+    </Stack>
   ) : (
-    <Button
-      fullWidth
-      variant="outlined"
-      onClick={() => {
-        setMessage("");
-        resetTurnstile();
-        setStep("email");
-      }}
-      sx={outlinedBtnSx}
-    >
-      Get my worksheet downloads
-    </Button>
+    (downloadButtons ?? (
+      <Button
+        fullWidth
+        variant="outlined"
+        onClick={() => {
+          setMessage("");
+          resetTurnstile();
+          setStep("email");
+        }}
+        sx={outlinedBtnSx}
+      >
+        Get my worksheet downloads
+      </Button>
+    ))
+  );
+
+  // Worksheet downloads are locked: tell the student how to unlock them.
+  // Used for both "never paid" and "window ended" on the DD Worksheets window.
+  const worksheetLocked = (
+    <>
+      <Stack spacing={1} sx={{ alignItems: "center", textAlign: "center" }}>
+        {step === "expired" ? (
+          <EventBusyIcon sx={{ color: "#E8A800", fontSize: 48 }} />
+        ) : (
+          <LockOutlinedIcon sx={{ color: "#16A34A", fontSize: 48 }} />
+        )}
+        <Typography sx={{ fontWeight: 700 }}>
+          {step === "expired"
+            ? "Your worksheet access has ended"
+            : "Worksheets are free with the Web App or the Book"}
+        </Typography>
+        <Typography sx={{ color: "#5B6470" }}>
+          {step === "expired"
+            ? `${validUntil ? `Your access ended on ${formatDate(validUntil)}. ` : ""}Buy the DD Web App or the DD NoteBook again to get another year of worksheet downloads.`
+            : `Buy the DD Web App or the DD NoteBook to get 1 year of free worksheet downloads. We could not find a purchase for ${normalizedEmail}. Please use the same email you paid with.`}
+        </Typography>
+      </Stack>
+      <Stack spacing={1.25}>
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={() => scrollToSection("banner-webapp")}
+          sx={primaryBtnSx}
+        >
+          Get DD Web App ({PRODUCT_INFO.WEBAPP.price} / month)
+        </Button>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => scrollToSection("book")}
+          sx={outlinedBtnSx}
+        >
+          Order the DD NoteBook ({BOOK_PRICE})
+        </Button>
+      </Stack>
+    </>
   );
 
   return (
@@ -530,7 +594,7 @@ export default function AccessModal({ product, onClose }: Props) {
               <Typography sx={{ color: "#5B6470" }}>
                 {isWebApp
                   ? "Enter your email to continue. Use the same email you sign in with on Google."
-                  : "Enter your email to continue."}
+                  : "Enter the email you used to buy the DD Web App or the DD NoteBook."}
               </Typography>
               <TextField
                 fullWidth
@@ -637,69 +701,76 @@ export default function AccessModal({ product, onClose }: Props) {
           )}
 
           {/* STEP 2b: registered, has never paid */}
-          {step === "unpaid" && (
-            <>
-              <Stack
-                spacing={1}
-                sx={{ alignItems: "center", textAlign: "center" }}
-              >
-                <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 48 }} />
-                <Typography sx={{ fontWeight: 700 }}>
-                  You&apos;re registered
-                </Typography>
-                <Typography sx={{ color: "#5B6470" }}>
-                  Pay {info.price} for {info.period} of access to {info.label}.
-                </Typography>
-              </Stack>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={handlePay}
-                disabled={loading}
-                sx={primaryBtnSx}
-              >
-                {loading ? (
-                  <CircularProgress size={22} color="inherit" />
-                ) : (
-                  `Proceed to Pay ${info.price}`
-                )}
-              </Button>
-            </>
-          )}
+          {step === "unpaid" &&
+            (isWebApp ? (
+              <>
+                <Stack
+                  spacing={1}
+                  sx={{ alignItems: "center", textAlign: "center" }}
+                >
+                  <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 48 }} />
+                  <Typography sx={{ fontWeight: 700 }}>
+                    You&apos;re registered
+                  </Typography>
+                  <Typography sx={{ color: "#5B6470" }}>
+                    Pay {info.price} for {info.period} of access to {info.label}.
+                    Worksheet downloads are free for 1 year with it.
+                  </Typography>
+                </Stack>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handlePay}
+                  disabled={loading}
+                  sx={primaryBtnSx}
+                >
+                  {loading ? (
+                    <CircularProgress size={22} color="inherit" />
+                  ) : (
+                    `Proceed to Pay ${info.price}`
+                  )}
+                </Button>
+              </>
+            ) : (
+              worksheetLocked
+            ))}
 
           {/* STEP 2c: has paid before, but the plan has ended */}
-          {step === "expired" && (
-            <>
-              <Stack
-                spacing={1}
-                sx={{ alignItems: "center", textAlign: "center" }}
-              >
-                <EventBusyIcon sx={{ color: "#E8A800", fontSize: 48 }} />
-                <Typography sx={{ fontWeight: 700 }}>
-                  Your plan has expired
-                </Typography>
-                <Typography sx={{ color: "#5B6470" }}>
-                  {validUntil
-                    ? `Your ${info.period} access ended on ${formatDate(validUntil)}. `
-                    : ""}
-                  Renew for {info.price} to continue with {info.label}.
-                </Typography>
-              </Stack>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={handlePay}
-                disabled={loading}
-                sx={primaryBtnSx}
-              >
-                {loading ? (
-                  <CircularProgress size={22} color="inherit" />
-                ) : (
-                  `Renew for ${info.price}`
-                )}
-              </Button>
-            </>
-          )}
+          {step === "expired" &&
+            (isWebApp ? (
+              <>
+                <Stack
+                  spacing={1}
+                  sx={{ alignItems: "center", textAlign: "center" }}
+                >
+                  <EventBusyIcon sx={{ color: "#E8A800", fontSize: 48 }} />
+                  <Typography sx={{ fontWeight: 700 }}>
+                    Your plan has expired
+                  </Typography>
+                  <Typography sx={{ color: "#5B6470" }}>
+                    {validUntil
+                      ? `Your ${info.period} access ended on ${formatDate(validUntil)}. `
+                      : ""}
+                    Renew for {info.price} to continue with {info.label}.
+                  </Typography>
+                </Stack>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handlePay}
+                  disabled={loading}
+                  sx={primaryBtnSx}
+                >
+                  {loading ? (
+                    <CircularProgress size={22} color="inherit" />
+                  ) : (
+                    `Renew for ${info.price}`
+                  )}
+                </Button>
+              </>
+            ) : (
+              worksheetLocked
+            ))}
 
           {/* STEP 2d: plan is active */}
           {step === "paid" && (
@@ -710,7 +781,7 @@ export default function AccessModal({ product, onClose }: Props) {
               >
                 <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 48 }} />
                 <Typography sx={{ fontWeight: 700 }}>
-                  Your plan is active
+                  {isWebApp ? "Your plan is active" : "Worksheet downloads unlocked"}
                 </Typography>
                 <Typography sx={{ color: "#5B6470" }}>{activeText}</Typography>
               </Stack>
@@ -718,7 +789,7 @@ export default function AccessModal({ product, onClose }: Props) {
             </>
           )}
 
-          {/* STEP 3: payment just completed */}
+          {/* STEP 3: payment just completed (DD Web App only) */}
           {step === "success" && (
             <>
               <Stack

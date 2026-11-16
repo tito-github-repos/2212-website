@@ -255,7 +255,7 @@ export default function BookOrderModal({ onClose }: Props) {
         amount: order.amount,
         currency: order.currency,
         name: "2212",
-        description: "2212 Book (1 copy)",
+        description: "DD NoteBook (1 copy)",
         order_id: order.orderId,
         prefill: {
           name: clean.name,
@@ -320,7 +320,7 @@ export default function BookOrderModal({ onClose }: Props) {
       slotProps={{ paper: { sx: { borderRadius: "20px" } } }}
     >
       <DialogTitle sx={{ fontWeight: 800, pr: 6 }}>
-        {step === "form" ? "Order the 2212 Book" : "Order confirmed"}
+        {step === "form" ? "Order the DD NoteBook" : "Order confirmed"}
         <IconButton
           aria-label="Close"
           onClick={onClose}
@@ -345,7 +345,8 @@ export default function BookOrderModal({ onClose }: Props) {
             <>
               <Typography sx={{ color: "#5B6470" }}>
                 Enter your delivery details. One copy of the book will be
-                delivered to this address. Price: {BOOK_PRICE}.
+                delivered to this address. Price: {BOOK_PRICE}. Use the email
+                you want for your free worksheet downloads.
               </Typography>
 
               <TextField
@@ -490,8 +491,13 @@ export default function BookOrderModal({ onClose }: Props) {
                   Payment successful
                 </Typography>
                 <Typography sx={{ color: "#5B6470" }}>
-                  Thank you! Your order for the 2212 Book is confirmed. One copy
+                  Thank you! Your order for the DD NoteBook is confirmed. One copy
                   will be delivered to the address you entered.
+                </Typography>
+                <Typography sx={{ color: "#5B6470" }}>
+                  Your worksheet downloads are now free for 1 year. Open DD
+                  Worksheets and enter {values.email.trim().toLowerCase()} to
+                  download.
                 </Typography>
               </Stack>
 
@@ -500,7 +506,7 @@ export default function BookOrderModal({ onClose }: Props) {
                   Delivering to
                 </Typography>
                 <Typography variant="body2">
-                  {values.name.trim()}, <br /> {values.address.trim()},{" "} 
+                  {values.name.trim()}, <br /> {values.address.trim()},{" "}
                   {values.city.trim()}, <br /> {values.state.trim()} -{" "}
                   {values.pincode}
                 </Typography>

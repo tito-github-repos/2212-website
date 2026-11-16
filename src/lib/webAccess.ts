@@ -64,6 +64,6 @@ export function blockedCopy(access: WebAccess) {
   return {
     title: "No active plan found",
     text: `We could not find a paid plan for ${access.email}. Please pay using the same email you sign in with on Google.`,
-    button: "Get Worksheets & App",
+    button: "Get DD Web App",
   };
 }

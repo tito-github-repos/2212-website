@@ -23,9 +23,7 @@ import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 import AccessModal, { type Product } from "./AccessModal";
-// Book section is switched off for now. To bring it back, uncomment this import
-// and the <BookSection /> line further down.
-// import BookSection from "./booksection";
+import BookSection from "./booksection";
 
 const GREEN = "#19B44A";
 const GREEN_DARK = "#12953c";
@@ -53,16 +51,18 @@ const banners: BannerData[] = [
     title: "DD Worksheets",
     tagline: "Do Daily. Drill Daily.",
     features: [
+      // "Free for 1 year with the DD Web App or the 2212 Book",
       "Unlimited worksheet downloads",
       "16 Mental Calisthenics sheets",
       "60 questions in each worksheet",
       // "Eligible to join the competitions",
       "Be a Qualifier and get online coaching scholarship",
     ],
-    price: "₹ 111",
-    priceSuffix: "/ Year",
-    priceNote: "Worksheet PDF downloads",
-    cta: "Get DD Worksheets",
+    price: "Free",
+    priceSuffix: "for 1 year",
+    priceNote:
+      "* For DD Web App subscribers or DD NoteBook buyers",
+    cta: "Download DD Worksheets",
   },
   {
     product: "WEBAPP",
@@ -75,6 +75,7 @@ const banners: BannerData[] = [
       "Voice answers, instant scores",
       "Multiple modes to practice",
       "See your score history",
+      "Get Free Access to DD Worksheets for 1 Year",
       // "Eligible to join the competitions",
       "Be a Qualifier and get online coaching scholarship",
     ],
@@ -578,9 +579,11 @@ function ProductBanner({
               >
                 {banner.price}
               </Typography>
-              <Typography sx={{ color: "#6B7280", fontSize: "1rem" }}>
-                {banner.priceSuffix}
-              </Typography>
+              {banner.priceSuffix && (
+                <Typography sx={{ color: "#6B7280", fontSize: "1rem" }}>
+                  {banner.priceSuffix}
+                </Typography>
+              )}
             </Stack>
             <Typography
               sx={{
@@ -720,8 +723,8 @@ export default function PremiumResourcesSection() {
           />
         ))}
 
-        {/* Book banner (switched off for now) */}
-        {/* <BookSection /> */}
+        {/* Book banner */}
+        <BookSection />
 
         <Box
           sx={{

@@ -1,9 +1,8 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { Product } from "@/generated/prisma";
 import { verifyDownloadPass } from "@/lib/downloadPass";
-import { getPlanStatus } from "@/lib/planAccess";
+import { getWorksheetAccess } from "@/lib/planAccess";
 
 export const runtime = "nodejs";
 
@@ -41,8 +40,9 @@ export async function GET(
       );
     }
 
-    // The pass is short-lived, but check the plan again so an expired plan never downloads
-    const plan = await getPlanStatus(email, Product.WORKSHEET);
+    // The pass is short-lived, but check access again so an ended window never downloads.
+    // Access = a PAID DD Web App or Book payment within the last year (or an old worksheet plan).
+    const plan = await getWorksheetAccess(email);
     if (plan.status !== "PAID") return fail("No active plan found", 403);
 
     const bytes = await readFile(path.join(DIR, entry.file));

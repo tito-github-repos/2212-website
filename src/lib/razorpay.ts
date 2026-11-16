@@ -2,24 +2,29 @@ import crypto from "crypto";
 import type { Product } from "@/generated/prisma";
 
 // Amounts in paise. The server is the only source of truth for price.
-//   WORKSHEET (DD Worksheet PDFs) : ₹111 per year  = 11100 paise
+//   WORKSHEET (DD Worksheet PDFs) : no longer sold. Worksheets are free with the
+//                                   DD Web App or the Book. Kept for old payments.
 //   WEBAPP    (DD Web App)        : ₹333 per month = 33300 paise
-//   BOOK      (switched off)      : ₹222
+//   BOOK      (2212 Book)         : ₹222 = 22200 paise
 export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
   WORKSHEET: { label: "DD Worksheets", amount: 11100 },
   WEBAPP: { label: "DD Web App", amount: 33300 },
-  BOOK: { label: "2212 Book (1 copy)", amount: 22200 },
+  BOOK: { label: "DD NoteBook (1 copy)", amount: 22200 },
 };
 
 // How many months of access one payment gives. Products not listed here
 // (like BOOK) have no access period.
+// WORKSHEET stays here for old payments and any unpaid order still in flight.
 const ACCESS_MONTHS: Partial<Record<Product, number>> = {
   WORKSHEET: 12,
   WEBAPP: 1,
 };
+
+// Worksheet downloads stay open this many months after a PAID DD Web App or Book payment
+const WORKSHEET_WINDOW_MONTHS = 12;
 
 // Adds calendar months and clamps to the last day of the target month
 // (31 Jan + 1 month = 28/29 Feb, not 3 Mar)
@@ -39,6 +44,11 @@ function addMonths(date: Date, months: number) {
 export function getValidUntil(product: Product, paidAt: Date): Date | null {
   const months = ACCESS_MONTHS[product];
   return months ? addMonths(paidAt, months) : null;
+}
+
+// End of the worksheet download window for a DD Web App or Book payment
+export function getWorksheetWindowEnd(paidAt: Date): Date {
+  return addMonths(paidAt, WORKSHEET_WINDOW_MONTHS);
 }
 
 export async function createRazorpayOrder(args: {

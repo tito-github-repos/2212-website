@@ -37,7 +37,7 @@ export default function BookOrderConfirmation({
   return (
     <Html>
       <Head />
-      <Preview>Your 2212 book order is confirmed</Preview>
+      <Preview>Your DD NoteBook order is confirmed</Preview>
 
       <Body
         style={{

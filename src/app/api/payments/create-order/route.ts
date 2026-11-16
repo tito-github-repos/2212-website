@@ -11,9 +11,10 @@ export const runtime = "nodejs";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// Products with an access period go through this route.
+// Only the DD Web App is paid through this route.
+// Worksheets are free with the DD Web App or the Book, so they are no longer sold.
 // BOOK has its own flow at /api/book-orders (it needs the delivery address).
-const PRODUCTS: string[] = [Product.WORKSHEET, Product.WEBAPP];
+const PRODUCTS: string[] = [Product.WEBAPP];
 
 const fail = (message: string, status: number) =>
   NextResponse.json({ success: false, message }, { status });

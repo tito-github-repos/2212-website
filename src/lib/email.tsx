@@ -61,7 +61,7 @@ export async function sendPaymentConfirmation(
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: email,
-    subject: "2212 Payment Confirmation",
+    subject: "DD Web App Payment Confirmation",
     react: <PaymentConfirmation {...rest} />,
   });
 }
@@ -85,7 +85,7 @@ export async function sendBookOrderConfirmation(
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: email,
-    subject: "2212 Book Order Confirmation",
+    subject: "DD NoteBook Order Confirmation",
     react: <BookOrderConfirmation {...rest} />,
   });
 }
@@ -97,7 +97,7 @@ export async function sendBookOrderAdminNotification(
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: process.env.ADMIN_EMAIL!,
-    subject: "New 2212 Book Order - Please Ship",
+    subject: "New DD NoteBook Order - Please Ship",
     react: <BookOrderAdminNotification {...data} />,
   });
 }

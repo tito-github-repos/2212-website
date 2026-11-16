@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Product } from "@/generated/prisma";
 import { getValidUntil, verifyPaymentSignature } from "@/lib/razorpay";
 import { createDownloadPass } from "@/lib/downloadPass";
 import { notifyPaymentSuccess } from "@/lib/payment-notifications";
@@ -63,15 +62,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // The verified signature proves this browser just paid. The worksheet PDFs come
-    // with the DD Worksheets (and the book), not with the DD Web App.
+    // The verified signature proves this browser just paid. A paid DD Web App or Book
+    // gives the worksheet PDFs for one year, so every paid product gets a download pass.
     let downloadPass: string | undefined;
-    if (payment.product !== Product.WEBAPP) {
-      try {
-        downloadPass = createDownloadPass(payment.registration.email);
-      } catch (error) {
-        console.error("Download pass error:", error);
-      }
+    try {
+      downloadPass = createDownloadPass(payment.registration.email);
+    } catch (error) {
+      console.error("Download pass error:", error);
     }
 
     return NextResponse.json({ success: true, downloadPass });

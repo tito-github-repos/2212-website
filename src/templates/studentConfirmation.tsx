@@ -52,6 +52,19 @@ const listStyle = {
   fontSize: "14px",
 };
 
+// Numbered points (1, 2, 3...)
+function NumberedList({ items }: { items: string[] }) {
+  return (
+    <ol style={listStyle}>
+      {items.map((item) => (
+        <li key={item} style={{ marginBottom: "4px" }}>
+          {item}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function Offer({
   title,
   price,
@@ -60,7 +73,7 @@ function Offer({
 }: {
   title: string;
   price: string;
-  validity: string;
+  validity?: string;
   children: ReactNode;
 }) {
   return (
@@ -75,7 +88,9 @@ function Offer({
       <Text style={{ margin: "4px 0", fontWeight: "bold", color: "#0f172a" }}>
         {title} <span style={{ color: "#0f766e" }}>- {price}</span>
       </Text>
-      <Text style={validityStyle}>Validity: {validity}</Text>
+      {validity ? (
+        <Text style={validityStyle}>Validity: {validity}</Text>
+      ) : null}
       {children}
     </Section>
   );
@@ -125,7 +140,8 @@ export default function StudentConfirmation({
             excited to have you join us! Here is what you can do next:
           </Text>
 
-          <Offer title="2212 Mobile App" price="Free" validity="one year">
+          {/* 1. Mobile app */}
+          <Offer title="2212 Mobile App" price="Free" validity="One year">
             <Text style={descriptionStyle}>
               Practise anytime, anywhere. Get it on{" "}
               <Link href={GOOGLE_PLAY_URL} style={linkStyle}>
@@ -139,40 +155,45 @@ export default function StudentConfirmation({
             </Text>
           </Offer>
 
+          {/* 2. Worksheets: free with Web App or NoteBook */}
           <Offer
             title="DD Worksheets"
-            price={`${rupees(PRODUCT_CONFIG.WORKSHEET.amount)} per year`}
+            price="Free for 1 year"
             validity="One year"
           >
-            <ol style={listStyle}>
-              <li style={{ marginBottom: "4px" }}>Multiple downloads in a year</li>
-              <li>16 worksheets with questions and answers (PDF)</li>
-            </ol>
+            <Text style={descriptionStyle}>
+              Free for DD Web App subscribers or DD NoteBook buyers.
+            </Text>
+            <NumberedList
+              items={[
+                "Multiple downloads in a year",
+                "16 worksheets with questions and answers (PDF)",
+              ]}
+            />
           </Offer>
 
+          {/* 4. NoteBook */}
           <Offer
-            title="DD Web App"
-            price={`${rupees(PRODUCT_CONFIG.WEBAPP.amount)} per month`}
-            validity="One month"
-          >
-            
-                Multiple modes: Timed practice tests on all 16 topics, with
-                instant scores.
-              
-          </Offer>
-
-          {/* Book box, switched off for now. Uncomment when book orders open.
-          <Offer
-            title="DD Workbook + worksheet PDFs"
-            price={rupees(PRODUCT_CONFIG.BOOK.amount)}
-            validity="..."
+            title="DD NoteBook"
+            price={`${rupees(PRODUCT_CONFIG.BOOK.amount)} for one copy`}
           >
             <Text style={descriptionStyle}>
               The DD workbook is delivered to your address, and you can also
               download the worksheet PDFs.
             </Text>
           </Offer>
-          */}
+
+          {/* 3. Web App */}
+          <Offer
+            title="DD Web App"
+            price={`${rupees(PRODUCT_CONFIG.WEBAPP.amount)} per month`}
+            validity="One month"
+          >
+            <Text style={descriptionStyle}>
+              Multiple modes: Timed practice tests on all 16 topics, with
+              instant scores.
+            </Text>
+          </Offer>
 
           <Text>If you have any questions, feel free to contact us.</Text>
 
