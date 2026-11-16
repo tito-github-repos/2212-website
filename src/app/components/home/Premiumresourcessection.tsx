@@ -60,8 +60,7 @@ const banners: BannerData[] = [
     ],
     price: "Free",
     priceSuffix: "for 1 year",
-    priceNote:
-      "* For DD Web App subscribers or DD NoteBook buyers",
+    priceNote: "* For DD Web App subscribers or DD NoteBook buyers",
     cta: "Download DD Worksheets",
   },
   {
@@ -714,17 +713,28 @@ export default function PremiumResourcesSection() {
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        {/* DD Worksheet banner, then DD Web App banner (stacked) */}
-        {banners.map((banner) => (
-          <ProductBanner
-            key={banner.product}
-            banner={banner}
-            onOpen={() => setActiveProduct(banner.product)}
-          />
-        ))}
+        {/* Order: Free worksheets, then the book, then the web app */}
+        {banners
+          .filter((b) => b.product === "WORKSHEET")
+          .map((banner) => (
+            <ProductBanner
+              key={banner.product}
+              banner={banner}
+              onOpen={() => setActiveProduct(banner.product)}
+            />
+          ))}
 
-        {/* Book banner */}
         <BookSection />
+
+        {banners
+          .filter((b) => b.product === "WEBAPP")
+          .map((banner) => (
+            <ProductBanner
+              key={banner.product}
+              banner={banner}
+              onOpen={() => setActiveProduct(banner.product)}
+            />
+          ))}
 
         <Box
           sx={{
