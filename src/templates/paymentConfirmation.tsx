@@ -74,7 +74,7 @@ export default function PaymentConfirmation({
   return (
     <Html>
       <Head />
-      <Preview>Your 2212 payment was successful</Preview>
+      <Preview>Your DD Web App payment was successful</Preview>
 
       <Body
         style={{

@@ -33,7 +33,7 @@ const DANGER = "#ff6b6b";
 const SUCCESS = "#4ade80";
 
 const GENERAL_LINES = [
-  "There are ten tests here. Each test has 60 numerical.",
+  "There are 16 tests here. Each test has 60 numerical.",
   "You need to solve each test by less than a minute.",
   "The goal is to solve within 30 seconds.",
   "Excellent: Solving it by less than 30 seconds.",

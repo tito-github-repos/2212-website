@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { Product } from "@/generated/prisma";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { createDownloadPass } from "@/lib/downloadPass";
+import { getPlanStatus, getWorksheetAccess } from "@/lib/planAccess";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// Products with an access period go through this route.
+// WORKSHEET here means "can this email download the worksheets?"
+// (free for 1 year after a paid DD Web App or Book payment).
+// WEBAPP means "does this email have an active DD Web App plan?".
 // BOOK has its own flow at /api/book-orders.
 const PRODUCTS: string[] = [Product.WORKSHEET, Product.WEBAPP];
 
@@ -43,48 +45,19 @@ export async function POST(req: NextRequest) {
       return fail("Verification failed. Please try again.", 400);
     }
 
-    // One indexed query: registration + the latest PAID payment for this product
-    const registration = await prisma.registration.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        payments: {
-          where: {
-            product: product as Product,
-            status: "PAID",
-            validUntil: { not: null },
-          },
-          orderBy: { validUntil: "desc" },
-          select: { validUntil: true },
-          take: 1,
-        },
-      },
-    });
-
     // NOT_REGISTERED   : no registration for this email
-    // REGISTERED_UNPAID: registered, has never paid for this product
-    // PAID             : latest paid plan is still active
-    // PLAN_EXPIRED     : has paid before, but the latest plan has ended
-    let status:
-      | "NOT_REGISTERED"
-      | "REGISTERED_UNPAID"
-      | "PAID"
-      | "PLAN_EXPIRED";
-    let validUntil: string | null = null;
+    // REGISTERED_UNPAID: registered, has never paid for a qualifying product
+    // PAID             : access is still active
+    // PLAN_EXPIRED     : has paid before, but the access has ended
+    const plan =
+      product === Product.WORKSHEET
+        ? await getWorksheetAccess(email)
+        : await getPlanStatus(email, Product.WEBAPP);
 
-    if (!registration) {
-      status = "NOT_REGISTERED";
-    } else {
-      const latest = registration.payments[0]?.validUntil ?? null;
-      if (!latest) {
-        status = "REGISTERED_UNPAID";
-      } else {
-        validUntil = latest.toISOString();
-        status = latest > new Date() ? "PAID" : "PLAN_EXPIRED";
-      }
-    }
+    const { status, validUntil } = plan;
 
-    // Only the DD Worksheets includes the PDFs, so only it gets a download pass
+    // Only the worksheet check gets a download pass. A paid DD Web App or Book
+    // user passes it, so they can download the PDFs.
     let downloadPass: string | undefined;
     if (status === "PAID" && product === Product.WORKSHEET) {
       try {
