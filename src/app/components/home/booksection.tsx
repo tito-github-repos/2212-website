@@ -14,13 +14,14 @@ const GREEN_DARK = "#12953c";
 const GREEN_DARKER = "#0e7d32";
 
 const bookBanner = {
-  title: "Get the 2212 Book",
+  title: "Get the DD NoteBook",
   tagline: "Delivered to your address.",
   price: BOOK_PRICE.replace("₹", "₹ "),
   priceNote: "For one copy of the book",
   cta: "Order the Book",
   features: [
     "One copy of the book delivered to your address",
+    "Get Free Access to DD Worksheets for 1 Year",
     "Fill in your delivery address and pay online",
     "Secure online payment",
   ],
