@@ -5,6 +5,7 @@ import PaymentConfirmation from "@/templates/paymentConfirmation";
 import PaymentAdminNotification from "@/templates/paymentAdminNotification";
 import BookOrderConfirmation from "@/templates/bookOrderConfirmation";
 import BookOrderAdminNotification from "@/templates/bookOrderAdminNotification";
+import WorksheetPaymentConfirmation from "@/templates/worksheetPaymentConfirmation";
 
 interface StudentConfirmationData {
   name: string;
@@ -58,11 +59,17 @@ export async function sendPaymentConfirmation(
   data: { name: string; email: string } & PaymentDetails,
 ) {
   const { email, ...rest } = data;
+  const isWorksheet = rest.productLabel.toLowerCase().includes("worksheet");
+
   await resend.emails.send({
     from: process.env.FROM_EMAIL!,
     to: email,
-    subject: "DD Web App Payment Confirmation",
-    react: <PaymentConfirmation {...rest} />,
+    subject: `${rest.productLabel} Payment Confirmation`,
+    react: isWorksheet ? (
+      <WorksheetPaymentConfirmation {...rest} />
+    ) : (
+      <PaymentConfirmation {...rest} />
+    ),
   });
 }
 

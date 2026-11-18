@@ -26,6 +26,9 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import { BOOK_PRICE } from "./BookOrderModal";
 
 export type Product = "WORKSHEET" | "WEBAPP";
+// free = worksheets unlocked by a paid Web App / Book (eligibility check only)
+// paid = the student buys the product directly (Razorpay)
+export type AccessMode = "free" | "paid";
 type Step = "email" | "register" | "unpaid" | "expired" | "paid" | "success";
 
 declare global {
@@ -38,13 +41,20 @@ declare global {
 }
 
 // Display only. The server decides the real amount and validity.
-// WORKSHEET is free now: it is unlocked by a paid DD Web App or 2212 Book.
+// WORKSHEET (free mode) is unlocked by a paid DD Web App or 2212 Book.
 const PRODUCT_INFO: Record<
   Product,
   { label: string; price: string; period: string }
 > = {
   WORKSHEET: { label: "DD Worksheets", price: "Free", period: "1 year" },
   WEBAPP: { label: "DD Web App", price: "₹333", period: "1 month" },
+};
+
+// Display only: the ₹11 / year DD Worksheets plan bought directly
+const PAID_WORKSHEET_INFO = {
+  label: "DD Worksheets",
+  price: "₹11",
+  period: "1 year",
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
@@ -128,15 +138,19 @@ const loadRazorpay = () =>
 
 type Props = {
   product: Product;
+  mode?: AccessMode; // only matters for WORKSHEET; defaults to "free"
   onClose: () => void;
 };
 
-export default function AccessModal({ product, onClose }: Props) {
-  const info = PRODUCT_INFO[product];
-  // The web app is used through Practice Now (Google sign-in) and is the only
-  // product paid for here. The worksheet downloads are free for 1 year after a
-  // paid DD Web App or 2212 Book.
+export default function AccessModal({ product, mode = "free", onClose }: Props) {
+  // The web app is used through Practice Now (Google sign-in).
   const isWebApp = product === "WEBAPP";
+  // DD Worksheets bought directly for ₹11 / year (not unlocked by Web App / Book)
+  const isPaidWorksheet = product === "WORKSHEET" && mode === "paid";
+  // Both of these end in a Razorpay payment; only the free worksheet does not
+  const needsPayment = isWebApp || isPaidWorksheet;
+
+  const info = isPaidWorksheet ? PAID_WORKSHEET_INFO : PRODUCT_INFO[product];
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -232,6 +246,7 @@ export default function AccessModal({ product, onClose }: Props) {
         body: JSON.stringify({
           email: normalizedEmail,
           product,
+          mode, // server: "paid" WORKSHEET checks the direct WORKSHEET payment
           turnstileToken: token,
         }),
       });
@@ -325,7 +340,8 @@ export default function AccessModal({ product, onClose }: Props) {
     }
   };
 
-  // Only the DD Web App is paid here (the server rejects any other product)
+  // Paid products: DD Web App and the paid DD Worksheets (the server rejects
+  // anything else and decides the real amount)
   const handlePay = async () => {
     setMessage("");
     setLoading(true);
@@ -352,8 +368,8 @@ export default function AccessModal({ product, onClose }: Props) {
 
       if (!res.ok || !order.success) {
         if (res.status === 409) {
-          // Already has an active plan. No pass here, the paid screen offers
-          // the Practice Now button.
+          // Already has an active plan. No pass here: the paid screen offers
+          // Practice Now (web app) or a button to fetch the downloads (worksheets).
           setDownloadPass("");
           setStep("paid");
         } else {
@@ -511,8 +527,8 @@ export default function AccessModal({ product, onClose }: Props) {
     ))
   );
 
-  // Worksheet downloads are locked: tell the student how to unlock them.
-  // Used for both "never paid" and "window ended" on the DD Worksheets window.
+  // Free worksheet mode only: downloads are locked, tell the student how to
+  // unlock them. Used for both "never paid" and "window ended".
   const worksheetLocked = (
     <>
       <Stack spacing={1} sx={{ alignItems: "center", textAlign: "center" }}>
@@ -594,7 +610,9 @@ export default function AccessModal({ product, onClose }: Props) {
               <Typography sx={{ color: "#5B6470" }}>
                 {isWebApp
                   ? "Enter your email to continue. Use the same email you sign in with on Google."
-                  : "Enter the email you used to buy the DD Web App or the DD NoteBook."}
+                  : isPaidWorksheet
+                    ? "Enter your email to continue. Use the same email each time you buy or download."
+                    : "Enter the email you used to buy the DD Web App or the DD NoteBook."}
               </Typography>
               <TextField
                 fullWidth
@@ -702,7 +720,7 @@ export default function AccessModal({ product, onClose }: Props) {
 
           {/* STEP 2b: registered, has never paid */}
           {step === "unpaid" &&
-            (isWebApp ? (
+            (needsPayment ? (
               <>
                 <Stack
                   spacing={1}
@@ -713,8 +731,9 @@ export default function AccessModal({ product, onClose }: Props) {
                     You&apos;re registered
                   </Typography>
                   <Typography sx={{ color: "#5B6470" }}>
-                    Pay {info.price} for {info.period} of access to {info.label}.
-                    Worksheet downloads are free for 1 year with it.
+                    {isWebApp
+                      ? `Pay ${info.price} for ${info.period} of access to ${info.label}. Worksheet downloads are free for 1 year with it.`
+                      : `Pay ${info.price} for ${info.period} of unlimited ${info.label} downloads.`}
                   </Typography>
                 </Stack>
                 <Button
@@ -737,7 +756,7 @@ export default function AccessModal({ product, onClose }: Props) {
 
           {/* STEP 2c: has paid before, but the plan has ended */}
           {step === "expired" &&
-            (isWebApp ? (
+            (needsPayment ? (
               <>
                 <Stack
                   spacing={1}
@@ -789,7 +808,7 @@ export default function AccessModal({ product, onClose }: Props) {
             </>
           )}
 
-          {/* STEP 3: payment just completed (DD Web App only) */}
+          {/* STEP 3: payment just completed (DD Web App or paid DD Worksheets) */}
           {step === "success" && (
             <>
               <Stack

@@ -29,9 +29,13 @@ const GREEN = "#19B44A";
 const GREEN_DARK = "#12953c";
 const GREEN_DARKER = "#0e7d32";
 
-/* ---------------- The two product banners ---------------- */
+/* ---------------- The product banners ---------------- */
+type AccessMode = "free" | "paid";
+
 type BannerData = {
+  id: string; // unique per banner (two banners share product WORKSHEET)
   product: Product;
+  mode: AccessMode; // free = eligibility check + download, paid = Razorpay flow
   illustration: "worksheet" | "webapp";
   mobileIcon: React.ElementType;
   title: string;
@@ -43,9 +47,31 @@ type BannerData = {
   cta: string;
 };
 
+// Array order = render order. Paid worksheet card comes first (above the free one).
 const banners: BannerData[] = [
   {
+    id: "worksheet-paid",
     product: "WORKSHEET",
+    mode: "paid",
+    illustration: "worksheet",
+    mobileIcon: DescriptionOutlinedIcon,
+    title: "DD Worksheets",
+    tagline: "Do Daily. Drill Daily.",
+    features: [
+      "Unlimited worksheet downloads for 1 year",
+      "16 Mental Calisthenics sheets",
+      "60 questions in each worksheet",
+      "Be a Qualifier and get online coaching scholarship",
+    ],
+    price: "₹ 11",
+    priceSuffix: "/ Year",
+    priceNote: "* For Drill Daily coaching aspirants, Class X & XI",
+    cta: "Buy DD Worksheets",
+  },
+  {
+    id: "worksheet-free",
+    product: "WORKSHEET",
+    mode: "free",
     illustration: "worksheet",
     mobileIcon: DescriptionOutlinedIcon,
     title: "DD Worksheets",
@@ -64,7 +90,9 @@ const banners: BannerData[] = [
     cta: "Download DD Worksheets",
   },
   {
+    id: "webapp",
     product: "WEBAPP",
+    mode: "paid",
     illustration: "webapp",
     mobileIcon: TimerOutlinedIcon,
     title: "DD Web App",
@@ -418,7 +446,7 @@ function BannerFeature({ text }: { text: string }) {
   );
 }
 
-/* ---------------- One product banner (used for both products) ---------------- */
+/* ---------------- One product banner (used for every product card) ---------------- */
 function ProductBanner({
   banner,
   onOpen,
@@ -430,7 +458,7 @@ function ProductBanner({
 
   return (
     <Box
-      id={`banner-${banner.product.toLowerCase()}`}
+      id={`banner-${banner.id}`}
       sx={{
         position: "relative",
         overflow: "hidden",
@@ -700,7 +728,9 @@ function CardHeader({
 }
 
 export default function PremiumResourcesSection() {
-  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  // Whole banner is stored (not just product) because the paid and free
+  // worksheet cards share product = WORKSHEET but need different modes.
+  const [activeBanner, setActiveBanner] = useState<BannerData | null>(null);
 
   return (
     <Box
@@ -713,28 +743,28 @@ export default function PremiumResourcesSection() {
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        {/* Order: Free worksheets, then the book, then the web app */}
+        {/* Order: paid worksheets (₹11), free worksheets, the book, then the web app */}
         {banners
           .filter((b) => b.product === "WORKSHEET")
           .map((banner) => (
             <ProductBanner
-              key={banner.product}
+              key={banner.id}
               banner={banner}
-              onOpen={() => setActiveProduct(banner.product)}
+              onOpen={() => setActiveBanner(banner)}
             />
           ))}
-
-        <BookSection />
 
         {banners
           .filter((b) => b.product === "WEBAPP")
           .map((banner) => (
             <ProductBanner
-              key={banner.product}
+              key={banner.id}
               banner={banner}
-              onOpen={() => setActiveProduct(banner.product)}
+              onOpen={() => setActiveBanner(banner)}
             />
           ))}
+
+        <BookSection />
 
         <Box
           sx={{
@@ -923,10 +953,11 @@ export default function PremiumResourcesSection() {
         </Box>
       </Container>
 
-      {activeProduct && (
+      {activeBanner && (
         <AccessModal
-          product={activeProduct}
-          onClose={() => setActiveProduct(null)}
+          product={activeBanner.product}
+          mode={activeBanner.mode}
+          onClose={() => setActiveBanner(null)}
         />
       )}
     </Box>

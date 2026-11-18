@@ -2,15 +2,16 @@ import crypto from "crypto";
 import type { Product } from "@/generated/prisma";
 
 // Amounts in paise. The server is the only source of truth for price.
-//   WORKSHEET (DD Worksheet PDFs) : no longer sold. Worksheets are free with the
-//                                   DD Web App or the Book. Kept for old payments.
+//   WORKSHEET (DD Worksheets)     : ₹11 per year = 1100 paise, bought directly.
+//                                   Also free for 1 year with a paid DD Web App or Book.
 //   WEBAPP    (DD Web App)        : ₹333 per month = 33300 paise
 //   BOOK      (2212 Book)         : ₹222 = 22200 paise
+
 export const PRODUCT_CONFIG: Record<
   Product,
   { label: string; amount: number }
 > = {
-  WORKSHEET: { label: "DD Worksheets", amount: 11100 },
+  WORKSHEET: { label: "DD Worksheets", amount: 1100 },
   WEBAPP: { label: "DD Web App", amount: 33300 },
   BOOK: { label: "DD NoteBook (1 copy)", amount: 22200 },
 };

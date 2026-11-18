@@ -11,10 +11,13 @@ export const runtime = "nodejs";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// Only the DD Web App is paid through this route.
-// Worksheets are free with the DD Web App or the Book, so they are no longer sold.
+// Paid through this route:
+//  - WEBAPP    : DD Web App (₹333 / month)
+//  - WORKSHEET : DD Worksheets bought directly (₹11 / year)
+// Worksheets are also free for 1 year with a paid DD Web App or Book, but that
+// goes through the free card (getFreeWorksheetAccess), not through this route.
 // BOOK has its own flow at /api/book-orders (it needs the delivery address).
-const PRODUCTS: string[] = [Product.WEBAPP];
+const PRODUCTS: string[] = [Product.WEBAPP, Product.WORKSHEET];
 
 const fail = (message: string, status: number) =>
   NextResponse.json({ success: false, message }, { status });
@@ -33,6 +36,7 @@ export async function POST(req: NextRequest) {
     }
     if (!PRODUCTS.includes(product)) return fail("Invalid request", 400);
 
+    // Server-side price only. PRODUCT_CONFIG.WORKSHEET.amount must be 1100 (paise).
     const config = PRODUCT_CONFIG[product as Product];
 
     // Mark abandoned checkouts (unpaid for 24h+) as EXPIRED. Never throws.
@@ -55,6 +59,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (!registration) return fail("Please register first", 404);
+
+    // Only this product's own active payment blocks a new order. A paid Web App or
+    // Book does not stop someone buying the ₹11 worksheet plan, because the paid
+    // card only accepts a WORKSHEET payment.
     if (registration.payments.length > 0) return fail("Already paid", 409);
 
     // Reuse this user's unpaid order for this product from the last 24 hours instead

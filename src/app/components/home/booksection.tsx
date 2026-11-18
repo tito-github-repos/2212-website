@@ -9,16 +9,22 @@ import MenuBookIcon from "@mui/icons-material/MenuBook";
 
 import BookOrderModal, { BOOK_PRICE } from "./BookOrderModal";
 
+// Set to false when the book is back in stock
+const OUT_OF_STOCK = true;
+
 const GREEN = "#19B44A";
 const GREEN_DARK = "#12953c";
 const GREEN_DARKER = "#0e7d32";
+const RED = "#D32F2F";
 
 const bookBanner = {
   title: "Get the DD NoteBook",
   tagline: "Delivered to your address.",
   price: BOOK_PRICE.replace("₹", "₹ "),
-  priceNote: "For one copy of the book",
-  cta: "Order the Book",
+  priceNote: OUT_OF_STOCK
+    ? "Currently unavailable. Please check back soon."
+    : "For one copy of the book",
+  cta: OUT_OF_STOCK ? "Out of Stock" : "Order the Book",
   features: [
     "One copy of the book delivered to your address",
     "Get Free Access to DD Worksheets for 1 Year",
@@ -29,6 +35,11 @@ const bookBanner = {
 
 export default function BookSection() {
   const [open, setOpen] = useState(false);
+
+  const handleOrderClick = () => {
+    if (OUT_OF_STOCK) return;
+    setOpen(true);
+  };
 
   return (
     <Box
@@ -86,27 +97,50 @@ export default function BookSection() {
         >
           <Box
             sx={{
+              position: "relative",
               bgcolor: "#fff",
-              border: "1px solid #BFE8CC",
+              border: `1px solid ${OUT_OF_STOCK ? "#F5C6C6" : "#BFE8CC"}`,
               borderRadius: 3,
               py: 1.25,
               px: 2,
               textAlign: "center",
             }}
           >
+            {OUT_OF_STOCK && (
+              <Box
+                sx={{
+                  display: "inline-block",
+                  bgcolor: "#FDECEA",
+                  color: RED,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  borderRadius: 10,
+                  px: 1.5,
+                  py: 0.4,
+                  mb: 0.75,
+                }}
+              >
+                Out of Stock
+              </Box>
+            )}
+
             <Typography
               sx={{
                 fontWeight: 800,
                 fontSize: { xs: "2rem", md: "2.6rem" },
-                color: GREEN_DARK,
+                color: OUT_OF_STOCK ? "#9CA3AF" : GREEN_DARK,
                 lineHeight: 1.1,
+                textDecoration: OUT_OF_STOCK ? "line-through" : "none",
               }}
             >
               {bookBanner.price}
             </Typography>
             <Typography
               sx={{
-                color: "#6B7280",
+                color: OUT_OF_STOCK ? RED : "#6B7280",
+                fontWeight: OUT_OF_STOCK ? 600 : 400,
                 fontSize: { xs: 12.5, md: 13 },
                 mt: 0.5,
               }}
@@ -118,8 +152,9 @@ export default function BookSection() {
           <Button
             variant="contained"
             fullWidth
-            endIcon={<ArrowForwardIcon />}
-            onClick={() => setOpen(true)}
+            disabled={OUT_OF_STOCK}
+            endIcon={OUT_OF_STOCK ? undefined : <ArrowForwardIcon />}
+            onClick={handleOrderClick}
             sx={{
               bgcolor: GREEN_DARK,
               color: "#fff",
@@ -130,6 +165,13 @@ export default function BookSection() {
               py: 1.5,
               boxShadow: "0 10px 20px rgba(18,149,60,0.3)",
               "&:hover": { bgcolor: GREEN_DARKER },
+              "&.Mui-disabled": {
+                bgcolor: "#E5E7EB",
+                color: "#6B7280",
+                boxShadow: "none",
+                cursor: "not-allowed",
+                pointerEvents: "auto",
+              },
             }}
           >
             {bookBanner.cta}
@@ -173,10 +215,12 @@ export default function BookSection() {
                 height: 44,
                 minWidth: 44,
                 borderRadius: 2.5,
-                bgcolor: GREEN,
+                bgcolor: OUT_OF_STOCK ? "#9CA3AF" : GREEN,
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 8px 16px rgba(25,180,74,0.3)",
+                boxShadow: OUT_OF_STOCK
+                  ? "none"
+                  : "0 8px 16px rgba(25,180,74,0.3)",
               }}
             >
               <MenuBookIcon sx={{ color: "#fff", fontSize: 24 }} />
@@ -253,7 +297,9 @@ export default function BookSection() {
         </Box>
       </Stack>
 
-      {open && <BookOrderModal onClose={() => setOpen(false)} />}
+      {!OUT_OF_STOCK && open && (
+        <BookOrderModal onClose={() => setOpen(false)} />
+      )}
     </Box>
   );
 }
