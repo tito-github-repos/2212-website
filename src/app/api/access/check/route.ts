@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Product } from "@/generated/prisma";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { createDownloadPass } from "@/lib/downloadPass";
-import { getPlanStatus, getWorksheetAccess } from "@/lib/planAccess";
+import { getPlanStatus, getFreeWorksheetAccess } from "@/lib/planAccess";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
-// WORKSHEET here means "can this email download the worksheets?"
-// (free for 1 year after a paid DD Web App or Book payment).
-// WEBAPP means "does this email have an active DD Web App plan?".
+// WORKSHEET + mode "free": free for 1 year after a paid DD Web App or Book payment.
+// WORKSHEET + mode "paid": the student's own WORKSHEET (₹11 / year) payment.
+// WEBAPP: does this email have an active DD Web App plan?
 // BOOK has its own flow at /api/book-orders.
 const PRODUCTS: string[] = [Product.WORKSHEET, Product.WEBAPP];
 
@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const product = typeof body.product === "string" ? body.product : "";
+    // Anything other than "paid" is treated as the free card
+    const mode: "free" | "paid" = body.mode === "paid" ? "paid" : "free";
     const turnstileToken =
       typeof body.turnstileToken === "string" ? body.turnstileToken : "";
 
@@ -49,15 +51,20 @@ export async function POST(req: NextRequest) {
     // REGISTERED_UNPAID: registered, has never paid for a qualifying product
     // PAID             : access is still active
     // PLAN_EXPIRED     : has paid before, but the access has ended
-    const plan =
-      product === Product.WORKSHEET
-        ? await getWorksheetAccess(email)
-        : await getPlanStatus(email, Product.WEBAPP);
+    let plan;
+    if (product === Product.WORKSHEET) {
+      plan =
+        mode === "paid"
+          ? await getPlanStatus(email, Product.WORKSHEET)
+          : await getFreeWorksheetAccess(email);
+    } else {
+      plan = await getPlanStatus(email, Product.WEBAPP);
+    }
 
     const { status, validUntil } = plan;
 
-    // Only the worksheet check gets a download pass. A paid DD Web App or Book
-    // user passes it, so they can download the PDFs.
+    // Only the worksheet check gets a download pass, and only when this card's
+    // own rule says PAID.
     let downloadPass: string | undefined;
     if (status === "PAID" && product === Product.WORKSHEET) {
       try {
